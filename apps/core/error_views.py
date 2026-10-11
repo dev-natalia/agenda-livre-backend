@@ -1,13 +1,19 @@
 from django.http import JsonResponse
 from django.views import defaults
+from django.views.decorators.csrf import csrf_exempt
 
 from apps.core.exceptions import UNEXPECTED_ERROR_MESSAGE
 
 API_PREFIX = "/api/"
 
 
+@csrf_exempt
 def api_not_found(request, *args, **kwargs):
-    """Rota coringa sob `/api/`: com `DEBUG` ligado o Django ignora `handler404`, esta não."""
+    """Rota coringa sob `/api/`: com `DEBUG` ligado o Django ignora `handler404`, esta não.
+
+    Isenta de CSRF: não lê o corpo nem altera estado, e sem isso um POST a uma rota inexistente
+    (por exemplo, um formulário de contato) receberia 403 em HTML em vez do 404 em JSON.
+    """
     return JsonResponse({"detail": "Não encontrado."}, status=404)
 
 
