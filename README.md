@@ -142,6 +142,29 @@ são gravadas; são calculadas a partir da programação, no fuso `America/Sao_P
 mostra as próximas ocorrências (só para atividades publicadas). Uma atividade com programações não pode ser
 excluída; excluir uma programação não afeta a atividade.
 
+## API pública de consulta
+
+Leitura sem login, somente `GET` (os demais métodos respondem 405), sob `/api/v1/`. Só atividades
+publicadas aparecem; nenhum dado de auditoria ou de conta é exposto. Contrato completo em
+`specs/006-public-consultation/contracts/public-api.md`.
+
+| Rota | Descrição |
+|---|---|
+| `GET /api/v1/activities/` | Lista paginada, com busca e filtros |
+| `GET /api/v1/activities/{id}/` | Detalhe (404 igual para inexistente, malformado ou não publicada) |
+| `GET /api/v1/units/` | Unidades ativas, por nome |
+| `GET /api/v1/categories/` | Categorias ativas, por nome |
+
+Parâmetros da listagem (todos opcionais, combináveis): `q` (título, resumo e descrição, sem acento e sem
+caixa, até 100 caracteres), `unit` e `category` (UUID), `neighborhood`, `date` ou `date_from`/`date_to`
+(`AAAA-MM-DD`, intervalo de até 366 dias), `page` e `page_size` (padrão 12, máximo 50). A ordem é pela
+próxima ocorrência (com filtro de data, a primeira dentro do período); atividades sem datas futuras vêm
+por último. Erros saem como `{"detail": "...", "errors": {"campo": ["..."]}}`.
+
+```bash
+curl "http://localhost:8000/api/v1/activities/?q=danca&date_from=2026-11-01&date_to=2026-11-30"
+```
+
 ## Frontend (CORS)
 
 O frontend fica em **outro repositório** e roda em outra origem local. O navegador só permite que ele chame
@@ -179,6 +202,6 @@ colunas. A configuração está em `pyproject.toml`. Use `ruff check --fix .` pa
 
 ```text
 config/   configuração do projeto (ambiente, settings, urls)
-apps/     módulos por domínio: core, units, categories, activities, schedules, audiences
+apps/     módulos por domínio: core, units, categories, activities, schedules, audiences, consultation
 tests/    testes unitários
 ```

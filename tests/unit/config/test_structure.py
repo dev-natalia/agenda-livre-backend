@@ -8,6 +8,7 @@ DOMAIN_MODULES = [
     "apps.activities",
     "apps.schedules",
     "apps.audiences",
+    "apps.consultation",
 ]
 
 
