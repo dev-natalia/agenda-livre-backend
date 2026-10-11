@@ -5,6 +5,9 @@ docs
 .env
 .venv/
 
+# Registros de erro locais
+logs/
+
 # Python
 __pycache__/
 *.pyc

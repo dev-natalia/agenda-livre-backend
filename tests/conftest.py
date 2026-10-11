@@ -20,10 +20,14 @@ def valid_env():
 
 
 @pytest.fixture
-def clean_env(monkeypatch):
-    """Remove do ambiente todas as variáveis da aplicação."""
+def clean_env(monkeypatch, tmp_path):
+    """Remove do ambiente todas as variáveis da aplicação.
+
+    `LOG_DIR` aponta para uma pasta temporária: nenhum teste grava em `logs/` do repositório.
+    """
     for name in ALL_VARS:
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("LOG_DIR", str(tmp_path / "logs"))
     return monkeypatch
 
 

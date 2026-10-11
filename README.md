@@ -39,6 +39,7 @@ O arquivo `.env` não é versionado. Nunca registre senhas ou chaves no reposit�
 | `DJANGO_SECRET_KEY` | Sim | | Chave secreta do Django |
 | `DJANGO_DEBUG` | Não | `False` | Modo de depuração (`True` ou `False`) |
 | `DJANGO_ALLOWED_HOSTS` | Não | `localhost,127.0.0.1` | Hosts aceitos, separados por vírgula |
+| `DJANGO_HTTPS_ONLY` | Não | `True` se `DJANGO_DEBUG=False` | Redireciona para HTTPS, usa cookies seguros e HSTS |
 | `DB_HOST` | Sim | | Endpoint do PostgreSQL no RDS |
 | `DB_PORT` | Sim | | Porta do PostgreSQL (normalmente `5432`) |
 | `DB_NAME` | Sim | | Nome do banco |
@@ -47,6 +48,16 @@ O arquivo `.env` não é versionado. Nunca registre senhas ou chaves no reposit�
 | `DB_SSLMODE` | Não | `require` | Modo TLS do PostgreSQL |
 | `DB_SSLROOTCERT` | Não | | Caminho do certificado raiz (com `verify-ca` ou `verify-full`) |
 | `CORS_ALLOWED_ORIGINS` | Não | vazio | Origens do frontend, separadas por vírgula |
+| `LOG_DIR` | Não | `logs` | Pasta dos registros de erro (relativa à raiz do repositório ou absoluta) |
+| `LOG_LEVEL` | Não | `ERROR` | Nível mínimo gravado: `WARNING`, `ERROR` ou `CRITICAL` |
+| `LOG_MAX_BYTES` | Não | `1048576` | Tamanho máximo de cada arquivo de registro, em bytes |
+| `LOG_BACKUP_COUNT` | Não | `5` | Quantos arquivos antigos de registro manter |
+
+**Modo restritivo:** com `DJANGO_DEBUG=False`, `DJANGO_HTTPS_ONLY` liga por padrão o redirecionamento
+para HTTPS, os cookies seguros e o HSTS. Como o sistema roda apenas localmente, em HTTP, quem usar
+`DJANGO_DEBUG=False` sem HTTPS deve definir `DJANGO_HTTPS_ONLY=False`; senão o navegador é redirecionado
+a HTTPS e o login do painel não persiste. Em qualquer modo valem `nosniff`, `X-Frame-Options: DENY` e
+cookie de sessão `HttpOnly`.
 
 Se alguma variável obrigatória faltar, a aplicação não inicia e informa o nome de todas as que faltam
 (sem mostrar valores).
@@ -186,6 +197,29 @@ CORS_ALLOWED_ORIGINS=http://localhost:5500
 
 Por padrão a lista é vazia: nenhuma origem é autorizada. Alterar a lista não exige mudar o código; basta
 reiniciar o backend.
+
+## Registro de erros
+
+As falhas inesperadas ficam em **`logs/agenda-livre.log`** (na raiz do repositório; pasta configurável por
+`LOG_DIR`, fora do Git). O arquivo gira ao atingir `LOG_MAX_BYTES`, mantendo `LOG_BACKUP_COUNT` arquivos
+antigos (`agenda-livre.log.1`, `.2`, ...), o que limita o espaço total.
+
+- **Gravado:** falhas inesperadas de requisição (horário, método, caminho, tipo da falha e rastreamento),
+  variável de ambiente ausente ou inválida na inicialização e falhas de conexão em `check_db` e
+  `safe_migrate` (tipo, host e porta).
+- **Nunca gravado:** erros esperados de cliente (400, 401, 403, 404, 405), corpo e parâmetros de
+  requisição, e segredos. Senhas, chaves, tokens, cookies, autorização e credenciais em endereços de
+  conexão são trocados por `***`.
+- A resposta ao visitante continua sendo só a mensagem genérica de erro. Se o arquivo não puder ser
+  gravado, a aplicação segue funcionando e o aviso vai para o terminal.
+
+```bash
+tail -n 50 logs/agenda-livre.log            # Git Bash / Linux / macOS
+# PowerShell: Get-Content logs\agenda-livre.log -Tail 50
+```
+
+**Fora do escopo:** implantação, backup e restauração, monitoramento e hospedagem. As páginas Sobre e
+Contato existem só no frontend, sem endpoint no backend.
 
 ## Testes e cobertura
 

@@ -2,13 +2,33 @@
 
 import os
 
-from config import env
+from django.core.exceptions import ImproperlyConfigured
 
-_required = env.require_env(env.REQUIRED_VARS)
+from config import env
+from config.logging_config import build_logging, log_startup_failure, resolve_log_dir
+
+try:
+    _required = env.require_env(env.REQUIRED_VARS)
+except ImproperlyConfigured as error:
+    log_startup_failure(error)
+    raise
 
 SECRET_KEY = _required["DJANGO_SECRET_KEY"]
 DEBUG = env.get_bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = env.get_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+
+# Proteções do modo restritivo (depuração desligada). Em HTTP local com DEBUG=False,
+# defina DJANGO_HTTPS_ONLY=False, senão o login do painel não persiste (cookie seguro).
+HTTPS_ONLY = env.get_bool("DJANGO_HTTPS_ONLY", not DEBUG)
+SECURE_SSL_REDIRECT = HTTPS_ONLY
+SESSION_COOKIE_SECURE = HTTPS_ONLY
+CSRF_COOKIE_SECURE = HTTPS_ONLY
+SECURE_HSTS_SECONDS = 3600 if HTTPS_ONLY else 0
+# Valem em qualquer modo.
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+SESSION_COOKIE_HTTPONLY = True
+SECURE_REFERRER_POLICY = "same-origin"
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -97,3 +117,12 @@ REST_FRAMEWORK = {
 
 # Origens do frontend (repositório separado). Vazio = nenhuma origem autorizada.
 CORS_ALLOWED_ORIGINS = env.get_list("CORS_ALLOWED_ORIGINS")
+
+# Registro de erros em arquivo local, com rotação e sem segredos (ver `config/logging_config.py`).
+LOGGING = build_logging(
+    resolve_log_dir(),
+    env.get_log_level(),
+    env.get_int("LOG_MAX_BYTES", 1048576, 1),
+    env.get_int("LOG_BACKUP_COUNT", 5, 0),
+    (SECRET_KEY, _required["DB_PASSWORD"]),
+)

@@ -26,11 +26,18 @@ OPTIONAL_VARS = (
     "DB_SSLMODE",
     "DB_SSLROOTCERT",
     "CORS_ALLOWED_ORIGINS",
+    "DJANGO_HTTPS_ONLY",
+    "LOG_DIR",
+    "LOG_LEVEL",
+    "LOG_MAX_BYTES",
+    "LOG_BACKUP_COUNT",
 )
 
 ALL_VARS = REQUIRED_VARS + OPTIONAL_VARS
 
 SSL_MODES = ("disable", "allow", "prefer", "require", "verify-ca", "verify-full")
+
+LOG_LEVELS = ("WARNING", "ERROR", "CRITICAL")
 
 _TRUE_VALUES = ("true", "1", "yes")
 _FALSE_VALUES = ("false", "0", "no")
@@ -89,3 +96,25 @@ def get_list(name, default=""):
     """Lê uma lista separada por vírgula, ignorando itens vazios."""
     raw = os.environ.get(name, "").strip() or default
     return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def get_int(name, default, minimum):
+    """Lê um inteiro opcional, com valor mínimo. A mensagem de erro não mostra o valor recebido."""
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ImproperlyConfigured(f"{name} deve ser um número inteiro.") from None
+    if value < minimum:
+        raise ImproperlyConfigured(f"{name} deve ser maior ou igual a {minimum}.")
+    return value
+
+
+def get_log_level():
+    """Lê `LOG_LEVEL`, com padrão `ERROR`."""
+    level = os.environ.get("LOG_LEVEL", "").strip().upper() or "ERROR"
+    if level not in LOG_LEVELS:
+        raise ImproperlyConfigured("LOG_LEVEL deve ser um de: " + ", ".join(LOG_LEVELS) + ".")
+    return level
