@@ -159,11 +159,21 @@ Parâmetros da listagem (todos opcionais, combináveis): `q` (título, resumo e 
 caixa, até 100 caracteres), `unit` e `category` (UUID), `neighborhood`, `date` ou `date_from`/`date_to`
 (`AAAA-MM-DD`, intervalo de até 366 dias), `page` e `page_size` (padrão 12, máximo 50). A ordem é pela
 próxima ocorrência (com filtro de data, a primeira dentro do período); atividades sem datas futuras vêm
-por último. Erros saem como `{"detail": "...", "errors": {"campo": ["..."]}}`.
+por último. Erros saem como `{"detail": "...", "errors": {"campo": ["..."]}}`. Página inválida responde
+400 com `errors.page`; rota inexistente e falha inesperada sob `/api/` também respondem JSON, sem
+detalhes internos (ver `specs/007-quality-security-accessibility/contracts/error-format.md`).
 
 ```bash
 curl "http://localhost:8000/api/v1/activities/?q=danca&date_from=2026-11-01&date_to=2026-11-30"
 ```
+
+## Acessibilidade
+
+A interface é do repositório do frontend (meta proposta: WCAG 2.2 nível AA). O backend entrega nomes
+legíveis (unidade, categoria, públicos-alvo, dias da semana), datas `AAAA-MM-DD`, horários `HH:MM`,
+campos opcionais vazios como `null` e erros por campo para o frontend associar a cada campo. Rótulos,
+teclado, foco, contraste e responsividade cabem ao frontend. Detalhes em
+`specs/007-quality-security-accessibility/contracts/accessibility-handoff.md`.
 
 ## Frontend (CORS)
 

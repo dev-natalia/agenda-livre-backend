@@ -74,10 +74,14 @@ def test_list_page_size_and_page(catalog):
     assert len(_get("/api/v1/activities/?page_size=500").json()["results"]) == 5
 
 
-def test_list_page_out_of_range_is_json_404(catalog):
-    response = _get("/api/v1/activities/?page=99")
-    assert response.status_code == 404
-    assert response.json() == {"detail": "Não encontrado."}
+@pytest.mark.parametrize("page", ["99", "abc"])
+def test_list_invalid_page_is_json_400_on_page_field(catalog, page):
+    response = _get(f"/api/v1/activities/?page={page}")
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Parâmetros inválidos.",
+        "errors": {"page": ["Informe uma página válida."]},
+    }
 
 
 def test_empty_list(catalog):

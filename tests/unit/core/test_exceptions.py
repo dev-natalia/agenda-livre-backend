@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.http import Http404
@@ -47,8 +48,20 @@ def test_other_api_errors_keep_detail_text_without_errors_key():
     assert response.data == {"detail": "Sem permissão."}
 
 
-def test_non_api_exception_is_left_to_django():
-    assert _handle(RuntimeError("boom")) is None
+def test_unexpected_exception_gets_generic_500_without_original_text():
+    response = _handle(RuntimeError("senha=abc123 em /srv/app/arquivo.py"))
+    assert response.status_code == 500
+    assert response.data == {"detail": "Ocorreu um erro inesperado. Tente novamente mais tarde."}
+
+
+def test_unexpected_exception_is_logged_with_method_and_path_only(caplog):
+    request = SimpleNamespace(method="GET", path="/api/v1/activities/", body=b"segredo")
+    with caplog.at_level("ERROR", logger="apps.core.exceptions"):
+        public_exception_handler(RuntimeError("boom"), {"request": request})
+    assert len(caplog.records) == 1
+    assert caplog.records[0].getMessage() == "Erro inesperado em GET /api/v1/activities/"
+    assert "segredo" not in caplog.text
+    assert caplog.records[0].exc_info[0] is RuntimeError
 
 
 def test_exception_without_detail_attribute_uses_text():

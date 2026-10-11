@@ -1,10 +1,11 @@
 import pytest
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
 from rest_framework.test import APIRequestFactory
 from rest_framework.views import APIView
 
 from apps.consultation.pagination import PublicPagination
+from apps.core.exceptions import public_exception_handler
 
 
 def _page(items, query=""):
@@ -34,9 +35,14 @@ def test_second_page_links_and_count():
     assert data["previous"] and data["next"]
 
 
-def test_page_out_of_range_is_not_found():
-    with pytest.raises(NotFound):
-        _page(list(range(30)), "?page=99")
+@pytest.mark.parametrize("query", ["?page=99", "?page=abc", "?page=0"])
+def test_invalid_page_is_a_validation_error_on_page(query):
+    with pytest.raises(ValidationError) as error:
+        _page(list(range(30)), query)
+    assert error.value.detail == {"page": ["Informe uma página válida."]}
+    response = public_exception_handler(error.value, {"request": None})
+    assert response.status_code == 400
+    assert response.data["errors"] == {"page": ["Informe uma página válida."]}
 
 
 def test_empty_list():

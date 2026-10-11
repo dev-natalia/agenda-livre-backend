@@ -1,6 +1,13 @@
+import logging
+
 from django.http import Http404
 from rest_framework.exceptions import MethodNotAllowed, NotFound, ValidationError
+from rest_framework.response import Response
 from rest_framework.views import exception_handler
+
+logger = logging.getLogger(__name__)
+
+UNEXPECTED_ERROR_MESSAGE = "Ocorreu um erro inesperado. Tente novamente mais tarde."
 
 
 def _messages(value):
@@ -19,7 +26,14 @@ def public_exception_handler(exc, context):
     """Erros JSON em formato único: `detail` e, na validação, `errors` por campo."""
     response = exception_handler(exc, context)
     if response is None:
-        return None
+        request = context.get("request")
+        logger.error(
+            "Erro inesperado em %s %s",
+            getattr(request, "method", "-"),
+            getattr(request, "path", "-"),
+            exc_info=(type(exc), exc, exc.__traceback__),
+        )
+        return Response({"detail": UNEXPECTED_ERROR_MESSAGE}, status=500)
     if isinstance(exc, ValidationError):
         response.data = {"detail": "Parâmetros inválidos.", "errors": _field_errors(exc.detail)}
     elif isinstance(exc, (NotFound, Http404)):
