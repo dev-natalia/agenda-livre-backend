@@ -128,6 +128,16 @@ editados no painel. O bairro "Cantinho do Céu" do CEU Navegantes é provisório
 Para retirar uma unidade ou categoria de uso, desative-a (ação "Desativar selecionados" ou desmarque
 "Ativo"); os vínculos existentes são preservados.
 
+## Dados de demonstração
+
+Para popular o ambiente de desenvolvimento com unidades, atividades e programações **fictícias** (depois de `seed_catalog`):
+
+```bash
+python manage.py seed_demo
+```
+
+O comando cria os CEUs Cidade Dutra, Vila Rubi e Vila do Sol e 15 atividades (publicadas, rascunhos, cancelada e encerradas) com datas relativas ao dia da execução. Usa o primeiro administrador ativo como autor, **não cria usuários** e é seguro para repetir (ignora o que já existe pelo título e unidade). O telefone de cada unidade fica no campo descrição, pois o modelo não tem campo próprio.
+
 ## Carga inicial de públicos-alvo e atividades
 
 O mesmo `seed_catalog` carrega as opções de público-alvo (Crianças, Adolescentes, Adultos, Pessoas idosas
