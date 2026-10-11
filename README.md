@@ -82,6 +82,26 @@ python manage.py safe_migrate
 Se a conexão falhar por rede, confira o Security Group do RDS (a sua máquina precisa estar autorizada). Por
 padrão a conexão usa TLS (`DB_SSLMODE=require`).
 
+## Acesso administrativo
+
+Todo o conteúdo é gerenciado pelo Django Admin, em `http://localhost:8000/admin/`. Para o painel carregar
+estilos e imagens no `runserver`, defina `DJANGO_DEBUG=true` no `.env` (uso local apenas).
+
+1. Aplique as migrations (`python manage.py safe_migrate`). Isso cria o grupo **Administrador**.
+2. Crie a primeira conta: `python manage.py create_admin <usuario>` (a senha é pedida sem eco e validada).
+3. Entre em `/admin/` com essa conta.
+
+**Perfil único:** o grupo **Administrador** recebe automaticamente todas as permissões (ver, criar, alterar e
+excluir todos os cadastros e gerenciar contas). Uma conta só opera o painel se estiver ativa, tiver
+"Membro da equipe" marcado e pertencer a esse grupo. Contas sem o grupo não veem cadastros e recebem
+403 em endereços diretos. Evite superusuários nas contas comuns, pois eles ignoram o grupo.
+
+**Outras contas:** crie pelo painel (Usuários), marque "Membro da equipe" e adicione ao grupo
+**Administrador**. Para retirar o acesso, desmarque "Ativo" (os registros da conta são preservados).
+
+**Limitações desta versão:** não há bloqueio por tentativas de login nem recuperação de senha por e-mail.
+Se alguém perder a senha, outro administrador a redefine pelo painel. A consulta pública não exige login.
+
 ## Frontend (CORS)
 
 O frontend fica em **outro repositório** e roda em outra origem local. O navegador só permite que ele chame

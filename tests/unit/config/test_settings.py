@@ -1,4 +1,5 @@
 import pytest
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 
@@ -45,3 +46,37 @@ def test_missing_required_variable_stops_startup(load_settings, clean_env):
 
     with pytest.raises(ImproperlyConfigured, match="DB_HOST"):
         load_settings()
+
+
+def test_password_validators_are_enabled():
+    names = [v["NAME"].rsplit(".", 1)[-1] for v in settings.AUTH_PASSWORD_VALIDATORS]
+
+    assert names == [
+        "UserAttributeSimilarityValidator",
+        "MinimumLengthValidator",
+        "CommonPasswordValidator",
+        "NumericPasswordValidator",
+    ]
+
+
+def test_middleware_order_supports_sessions_auth_and_csrf():
+    middleware = [m.rsplit(".", 1)[-1] for m in settings.MIDDLEWARE]
+
+    assert middleware == [
+        "SecurityMiddleware",
+        "CorsMiddleware",
+        "SessionMiddleware",
+        "CommonMiddleware",
+        "CsrfViewMiddleware",
+        "AuthenticationMiddleware",
+        "MessageMiddleware",
+    ]
+
+
+def test_passwords_use_django_default_hashing():
+    assert settings.PASSWORD_HASHERS[0].endswith("PBKDF2PasswordHasher")
+
+
+def test_no_login_throttling_is_configured():
+    assert settings.AUTHENTICATION_BACKENDS == ["django.contrib.auth.backends.ModelBackend"]
+    assert not any("axes" in m.lower() for m in settings.MIDDLEWARE)
