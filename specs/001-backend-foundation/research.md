@@ -26,8 +26,10 @@ Todos os pontos desconhecidos do Technical Context foram resolvidos. Não restam
 ## R3. Garantir que testes não acessem banco
 
 - **Decision**: duas camadas. (1) Configuração `config/settings_test.py` com `DATABASES` usando o backend
-  `dummy` do Django, que levanta erro em qualquer uso. (2) O bloqueio padrão do pytest-django, que falha
-  testes sem a marca `django_db`. Um teste de proteção confirma a falha explícita.
+  `config.blocked_db`, baseado no `dummy` do Django, que levanta erro explícito ("Acesso a banco de dados
+  proibido nos testes") em qualquer uso. O `dummy` puro foi descartado porque sua mensagem ("supply the
+  ENGINE value") não deixa claro que o acesso é proibido. (2) O bloqueio padrão do pytest-django, que falha
+  testes sem a marca `django_db`. Testes de proteção confirmam a falha explícita, inclusive em testes marcados com `django_db`.
 - **Rationale**: atende FR-010 sem depender de disciplina da equipe. A configuração de teste também não exige
   nenhuma variável de ambiente, então os testes rodam sem RDS e sem `.env`.
 - **Alternatives considered**: apenas bloqueio do pytest-django (rejeitado: um teste com a marca

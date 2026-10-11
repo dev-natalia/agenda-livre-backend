@@ -1,2 +1,16 @@
 .claude/skills
 docs
+
+# Ambiente e segredos
+.env
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# Testes, cobertura e lint
+.coverage
+htmlcov/
+.pytest_cache/
+.ruff_cache/

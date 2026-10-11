@@ -1,0 +1,18 @@
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings_test"
+testpaths = ["tests"]
+addopts = "--cov=apps --cov=config --cov-report=term-missing --cov-fail-under=90"
+
+[tool.coverage.run]
+omit = [
+    "manage.py",
+    "config/wsgi.py",
+    "config/asgi.py",
+]
+
+[tool.ruff]
+line-length = 100
+exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I"]
