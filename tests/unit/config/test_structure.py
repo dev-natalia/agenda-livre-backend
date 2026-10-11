@@ -16,7 +16,7 @@ def test_domain_modules_are_installed(module):
     assert module in settings.INSTALLED_APPS
 
 
-PENDING_MODULES = ["apps.activities", "apps.schedules", "apps.audiences"]
+PENDING_MODULES = ["apps.schedules"]
 
 
 def test_pending_domain_modules_define_no_business_models():
