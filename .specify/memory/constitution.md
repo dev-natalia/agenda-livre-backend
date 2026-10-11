@@ -13,19 +13,24 @@ Rationale: Django was chosen mainly for its ready-made admin area (low effort, s
 All persistence MUST use the Django ORM with schema changes expressed as Django migrations.
 The database is PostgreSQL hosted on AWS RDS. SQLAlchemy MUST NOT be used, because Django Admin
 only works with Django ORM models. Credentials and connection settings MUST come from environment
-variables and MUST NOT be committed to the repository.
+variables and MUST NOT be committed to the repository. A single RDS instance serves development;
+there is no Docker-based local database.
 Rationale: the report's SQLite/ORM description is superseded by this decision.
 
 ### III. Tested Code, 90% Coverage (NON-NEGOTIABLE)
 Unit tests MUST be written with pytest and pytest-django. Total coverage MUST be at least 90%
 and MUST be measured with coverage tooling. Every user story and public endpoint MUST have tests
-before the feature is considered done. Tests MUST NOT depend on the shared RDS instance
-unless a documented, isolated test database is used.
+before the feature is considered done. Tests are unit tests only: they MUST use mocks or stubs
+for the ORM, the clock and any external dependency, and MUST NOT access any database, including
+RDS. Database access MUST stay disabled in the pytest configuration.
 
 ### IV. REST API with Public, Filterable Catalog
 The backend MUST expose a REST API through Django REST Framework consumed by the HTML/CSS/
-JavaScript frontend. The public API MUST support listing and filtering courses and activities
-by neighborhood and date, and MUST return consistent JSON errors with correct HTTP status codes.
+JavaScript frontend, which lives in a separate repository (CORS MUST be configured for it). The
+public API MUST support listing, keyword search and filtering of activities by unit, category
+and date. Only PUBLISHED activities MUST be
+public; DRAFT, CANCELLED and FINISHED activities MUST be visible only to admins. Errors MUST be
+consistent JSON with correct HTTP status codes.
 Endpoint contracts MUST be documented in the feature spec before implementation.
 
 ### V. Accessibility, Security and Simplicity
@@ -38,11 +43,14 @@ scope (catalog, search, about, contact, admin login) without a spec.
 
 - Language and framework: Python 3.14, Django, Django REST Framework.
 - Database: PostgreSQL on AWS RDS (see Principle II).
-- Execution: local only. The project MUST NOT be deployed to production; no production
-  infrastructure, CI/CD deploy steps or production hardening work is in scope.
+- Execution: local only. The project MUST NOT be deployed to production. Hosting, HTTPS,
+  deploy procedures, backup/restore, RPO/RTO, monitoring, cost control and CI/CD deploy steps
+  are out of scope.
 - Delivery: the source MUST be published on GitHub, and a video demonstrating the working site
   MUST be recorded as part of the academic deliverable.
-- Scope: pilot for the UniCEU Navegantes polo; multi-unit expansion is future work.
+- Scope: pilot for the UniCEU Navegantes polo; multi-unit expansion is future work. The About
+  (fixed text) and Contact (demonstration only, no submission) pages are frontend-only and have no backend.
+- Frontend: separate repository (HTML, CSS, JavaScript) consuming this backend's API.
 - Dependencies MUST be pinned in a requirements file so the project runs on a clean machine.
 
 ## Development Workflow & Quality Gates
@@ -63,4 +71,4 @@ materially expanded guidance, PATCH for wording clarifications. Every spec, plan
 MUST be checked for compliance with these principles; deviations MUST be justified in writing.
 Compliance is reviewed before each academic deliverable.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-11
+**Version**: 1.1.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-11
