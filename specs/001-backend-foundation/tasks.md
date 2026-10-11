@@ -163,7 +163,7 @@ Projeto único com o Django na raiz: `config/` (projeto), `apps/` (módulos por 
 - [X] T035 Revisar o `README.md` contra o FR-015: versão do Python, instalação, variáveis de ambiente, verificação de conexão, migrations, execução, testes e verificação de estilo, todos presentes
 - [X] T036 Verificar a ausência de segredos: buscar no repositório (fora de `.venv`) por senhas, chaves e endpoints reais e confirmar que `.env` não está rastreado pelo Git
 - [X] T037 Executar `pytest` e `ruff check .` na árvore final e confirmar cobertura total de 90% ou mais e nenhum erro de estilo
-- [ ] T038 Executar a validação do `specs/001-backend-foundation/quickstart.md` (passos 1 a 9) com o RDS real, confirmando os resultados esperados de cada passo
+- [X] T038 Executar a validação do `specs/001-backend-foundation/quickstart.md` (passos 1 a 9) com o RDS real, confirmando os resultados esperados de cada passo
 
 ---
 
