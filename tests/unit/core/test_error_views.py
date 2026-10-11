@@ -52,3 +52,16 @@ def test_unknown_api_route_is_json_even_with_debug_on(settings, debug, path):
     response = Client().get(path, HTTP_HOST="localhost")
     assert response.status_code == 404
     assert response.json() == {"detail": "Não encontrado."}
+
+
+def test_api_not_found_is_csrf_exempt():
+    assert error_views.api_not_found.csrf_exempt is True
+
+
+@pytest.mark.parametrize("method", ["post", "put", "delete"])
+def test_unknown_api_route_ignores_csrf_checks_for_writes(method):
+    response = getattr(Client(enforce_csrf_checks=True), method)(
+        "/api/v1/nada/", HTTP_HOST="localhost"
+    )
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Não encontrado."}

@@ -219,7 +219,9 @@ tail -n 50 logs/agenda-livre.log            # Git Bash / Linux / macOS
 ```
 
 **Fora do escopo:** implantação, backup e restauração, monitoramento e hospedagem. As páginas Sobre e
-Contato existem só no frontend, sem endpoint no backend.
+Contato existem só no frontend, sem endpoint no backend: Sobre tem texto fixo e Contato é
+demonstrativa (não envia nem armazena mensagens). Qualquer requisição da API a caminhos como
+`/api/contato/` ou `/api/sobre/` recebe `404` em JSON, sem registrar o corpo.
 
 ## Testes e cobertura
 
