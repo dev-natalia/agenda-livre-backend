@@ -9,6 +9,7 @@ from apps.schedules import services
 from apps.schedules.models import Schedule
 from apps.schedules.services import (
     Occurrence,
+    activity_occurrences,
     format_weekdays,
     iter_occurrences,
     sync_weekdays,
@@ -16,6 +17,12 @@ from apps.schedules.services import (
 )
 
 Type = Schedule.Type
+
+
+@pytest.fixture(autouse=True)
+def _no_prefetch():
+    with patch.object(services, "prefetch_related_objects"):
+        yield
 
 
 def _weekdays(days):
@@ -37,7 +44,7 @@ def _schedule(kind, start, end, start_time=time(14), end_time=time(15), days=())
 def _activity(schedules, status=Activity.Status.PUBLISHED):
     activity = SimpleNamespace(status=status)
     activity.schedules = MagicMock()
-    activity.schedules.prefetch_related.return_value = schedules
+    activity.schedules.all.return_value = schedules
     return activity
 
 
@@ -187,3 +194,106 @@ def test_sync_empty_or_missing_clears_days():
     model.objects.bulk_create.assert_not_called()
     schedule, _ = _sync(None, [3])
     schedule.weekdays.filter.assert_called_once_with(weekday__in={3})
+
+
+def _recurring():
+    return _schedule(Type.RECURRING, date(2026, 11, 1), date(2026, 12, 31), days=[2, 4])
+
+
+def test_activity_occurrences_matches_upcoming_with_open_window():
+    activity = _activity([_recurring()])
+    now = _at(2026, 11, 9)
+    assert activity_occurrences(activity, now=now, limit=10) == upcoming_occurrences(
+        activity, now=now, limit=10
+    )
+
+
+def test_window_single_thursday_and_wednesday():
+    activity = _activity([_recurring()])
+    thursday = activity_occurrences(
+        activity, now=_at(2026, 11, 9), date_from=date(2026, 11, 12), date_to=date(2026, 11, 12)
+    )
+    assert _dates(thursday) == [date(2026, 11, 12)]
+    wednesday = activity_occurrences(
+        activity, now=_at(2026, 11, 9), date_from=date(2026, 11, 11), date_to=date(2026, 11, 11)
+    )
+    assert wednesday == []
+
+
+def test_window_outside_period_is_empty():
+    activity = _activity([_recurring()])
+    result = activity_occurrences(
+        activity, now=_at(2026, 11, 9), date_from=date(2027, 1, 5), date_to=date(2027, 1, 10)
+    )
+    assert result == []
+
+
+def test_window_in_the_past_is_empty():
+    activity = _activity([_recurring()])
+    result = activity_occurrences(
+        activity, now=_at(2026, 11, 9), date_from=date(2026, 11, 1), date_to=date(2026, 11, 5)
+    )
+    assert result == []
+
+
+def test_window_start_is_clamped_to_today():
+    activity = _activity([_recurring()])
+    result = activity_occurrences(
+        activity, now=_at(2026, 11, 9), date_from=date(2026, 11, 1), date_to=date(2026, 11, 13)
+    )
+    assert _dates(result) == [date(2026, 11, 10), date(2026, 11, 12)]
+
+
+def test_window_open_end_with_date_from_only():
+    activity = _activity([_recurring()])
+    result = activity_occurrences(
+        activity, now=_at(2026, 11, 9), date_from=date(2026, 12, 29), limit=5
+    )
+    assert _dates(result) == [date(2026, 12, 29), date(2026, 12, 31)]
+
+
+def test_window_one_time_finished_today_is_empty():
+    schedule = _schedule(Type.ONE_TIME, date(2026, 11, 10), date(2026, 11, 10))
+    result = activity_occurrences(
+        _activity([schedule]),
+        now=_at(2026, 11, 10, 15, 0),
+        date_from=date(2026, 11, 10),
+        date_to=date(2026, 11, 10),
+    )
+    assert result == []
+
+
+def test_limit_one_returns_earliest_even_with_several_schedules():
+    later = _schedule(Type.ONE_TIME, date(2026, 11, 20), date(2026, 11, 20))
+    result = activity_occurrences(_activity([later, _recurring()]), now=_at(2026, 11, 9), limit=1)
+    assert _dates(result) == [date(2026, 11, 10)]
+
+
+def test_limit_one_skips_todays_finished_occurrence():
+    activity = _activity([_recurring()])
+    result = activity_occurrences(activity, now=_at(2026, 11, 10, 16), limit=1)
+    assert _dates(result) == [date(2026, 11, 12)]
+
+
+def test_recurring_without_weekdays_is_empty():
+    schedule = _schedule(Type.RECURRING, date(2026, 11, 1), date(2026, 12, 31))
+    assert activity_occurrences(_activity([schedule]), now=_at(2026, 11, 9)) == []
+
+
+def test_activity_occurrences_invalid_limit():
+    with pytest.raises(ValueError):
+        activity_occurrences(_activity([]), limit=0)
+
+
+@pytest.mark.parametrize(
+    "status", [Activity.Status.DRAFT, Activity.Status.CANCELLED, Activity.Status.FINISHED]
+)
+def test_activity_occurrences_empty_when_not_published(status):
+    assert activity_occurrences(_activity([_recurring()], status), now=_at(2026, 11, 9)) == []
+
+
+def test_activity_occurrences_prefetches_schedules_and_weekdays():
+    activity = _activity([])
+    with patch.object(services, "prefetch_related_objects") as prefetch:
+        activity_occurrences(activity, now=_at(2026, 11, 9))
+    prefetch.assert_called_once_with([activity], "schedules__weekdays")

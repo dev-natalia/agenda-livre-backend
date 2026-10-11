@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "apps.activities",
     "apps.schedules",
     "apps.audiences",
+    "apps.consultation",
 ]
 
 MIDDLEWARE = [
@@ -91,6 +92,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "EXCEPTION_HANDLER": "apps.core.exceptions.public_exception_handler",
 }
 
 # Origens do frontend (repositório separado). Vazio = nenhuma origem autorizada.
