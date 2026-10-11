@@ -2,10 +2,14 @@ from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.forms.models import BaseInlineFormSet
+from django.utils.html import format_html, format_html_join
 
-from apps.activities.models import Activity, ActivityTargetAudience
+from apps.activities.models import PUBLIC_STATUSES, Activity, ActivityTargetAudience
 from apps.activities.services import StatusChangeError, change_status
 from apps.core.admin import ActiveOnlyForeignKeyMixin
+from apps.schedules.forms import ScheduleInlineForm
+from apps.schedules.models import Schedule
+from apps.schedules.services import sync_weekdays, upcoming_occurrences
 
 
 class ActivityTargetAudienceFormSet(BaseInlineFormSet):
@@ -51,13 +55,29 @@ class ActivityTargetAudienceInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
+class ScheduleInline(admin.StackedInline):
+    model = Schedule
+    form = ScheduleInlineForm
+    extra = 1
+    verbose_name = "Programação"
+    verbose_name_plural = "Programações"
+
+
 @admin.register(Activity)
 class ActivityAdmin(ActiveOnlyForeignKeyMixin, admin.ModelAdmin):
     list_display = ("title", "unit", "category", "status", "updated_at")
     list_filter = ("status", "unit", "category")
     search_fields = ("title", "summary")
     list_select_related = ("unit", "category")
-    readonly_fields = ("status", "slug", "created_by", "updated_by", "created_at", "updated_at")
+    readonly_fields = (
+        "status",
+        "slug",
+        "created_by",
+        "updated_by",
+        "created_at",
+        "updated_at",
+        "upcoming_occurrences_display",
+    )
     fields = (
         "title",
         "summary",
@@ -72,9 +92,51 @@ class ActivityAdmin(ActiveOnlyForeignKeyMixin, admin.ModelAdmin):
         "updated_by",
         "created_at",
         "updated_at",
+        "upcoming_occurrences_display",
     )
-    inlines = [ActivityTargetAudienceInline]
+    inlines = [ActivityTargetAudienceInline, ScheduleInline]
     actions = ["publish_selected", "cancel_selected", "finish_selected"]
+
+    @admin.display(description="Próximas ocorrências")
+    def upcoming_occurrences_display(self, obj):
+        if obj is None or obj.pk is None:
+            return "Salve a atividade para ver as próximas ocorrências."
+        if obj.status not in PUBLIC_STATUSES:
+            return "Sem ocorrências: a atividade não está publicada."
+        occurrences = upcoming_occurrences(obj)
+        if not occurrences:
+            return "Sem próximas ocorrências."
+        return format_html(
+            "<ul>{}</ul>",
+            format_html_join(
+                "",
+                "<li>{}, {}–{}</li>",
+                (
+                    (
+                        item.date.strftime("%d/%m/%Y"),
+                        item.start_time.strftime("%H:%M"),
+                        item.end_time.strftime("%H:%M"),
+                    )
+                    for item in occurrences
+                ),
+            ),
+        )
+
+    def save_formset(self, request, form, formset, change):
+        if formset.model is not Schedule:
+            return super().save_formset(request, form, formset, change)
+        saved = formset.save(commit=False)
+        for removed in formset.deleted_objects:
+            removed.delete()
+        for schedule in saved:
+            if schedule._state.adding:
+                schedule.created_by = request.user
+            schedule.updated_by = request.user
+            schedule.save()
+        for schedule_form in formset.forms:
+            if schedule_form.instance in saved:
+                sync_weekdays(schedule_form.instance, schedule_form.cleaned_data.get("weekdays"))
+        formset.save_m2m()
 
     def get_form(self, request, obj=None, **kwargs):
         request._editing_obj = obj
