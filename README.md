@@ -128,6 +128,20 @@ menos um público-alvo), "Cancelar selecionadas" e "Encerrar selecionadas" (só 
 canceladas ou encerradas podem ser publicadas de novo. Só as publicadas são públicas, e só rascunhos podem
 ser excluídos; as demais devem ser canceladas ou encerradas.
 
+## Programações e ocorrências
+
+As datas e horários das atividades são cadastrados em "Programações", ou pelo link "Adicionar programação"
+na página da atividade (que já preenche a atividade). Há dois tipos:
+
+- **Pontual**: uma única data (data final igual à inicial) e nenhum dia da semana.
+- **Recorrente**: período de validade (datas inclusivas) e ao menos um dia da semana (segunda a domingo).
+
+O horário de término precisa ser posterior ao de início; horários que atravessam a meia-noite não são
+suportados. Não há exceções por ocorrência: para mudar uma data, edite a programação. As ocorrências não
+são gravadas; são calculadas a partir da programação, no fuso `America/Sao_Paulo`. A página da atividade
+mostra as próximas ocorrências (só para atividades publicadas). Uma atividade com programações não pode ser
+excluída; excluir uma programação não afeta a atividade.
+
 ## Frontend (CORS)
 
 O frontend fica em **outro repositório** e roda em outra origem local. O navegador só permite que ele chame

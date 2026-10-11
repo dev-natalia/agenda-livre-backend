@@ -2,10 +2,14 @@ from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.forms.models import BaseInlineFormSet
+from django.urls import reverse
+from django.utils.html import format_html, format_html_join
 
-from apps.activities.models import Activity, ActivityTargetAudience
+from apps.activities.models import PUBLIC_STATUSES, Activity, ActivityTargetAudience
 from apps.activities.services import StatusChangeError, change_status
 from apps.core.admin import ActiveOnlyForeignKeyMixin
+from apps.schedules.models import Schedule
+from apps.schedules.services import format_weekdays, upcoming_occurrences
 
 
 class ActivityTargetAudienceFormSet(BaseInlineFormSet):
@@ -51,13 +55,38 @@ class ActivityTargetAudienceInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
+class ScheduleReadOnlyInline(admin.TabularInline):
+    model = Schedule
+    extra = 0
+    can_delete = False
+    show_change_link = True
+    verbose_name_plural = "Programações"
+    fields = ("schedule_type", "start_date", "end_date", "start_time", "end_time", "weekday_names")
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description="Dias da semana")
+    def weekday_names(self, obj):
+        return format_weekdays(obj)
+
+
 @admin.register(Activity)
 class ActivityAdmin(ActiveOnlyForeignKeyMixin, admin.ModelAdmin):
     list_display = ("title", "unit", "category", "status", "updated_at")
     list_filter = ("status", "unit", "category")
     search_fields = ("title", "summary")
     list_select_related = ("unit", "category")
-    readonly_fields = ("status", "slug", "created_by", "updated_by", "created_at", "updated_at")
+    readonly_fields = (
+        "status",
+        "slug",
+        "created_by",
+        "updated_by",
+        "created_at",
+        "updated_at",
+        "upcoming_occurrences_display",
+    )
     fields = (
         "title",
         "summary",
@@ -72,9 +101,35 @@ class ActivityAdmin(ActiveOnlyForeignKeyMixin, admin.ModelAdmin):
         "updated_by",
         "created_at",
         "updated_at",
+        "upcoming_occurrences_display",
     )
-    inlines = [ActivityTargetAudienceInline]
+    inlines = [ActivityTargetAudienceInline, ScheduleReadOnlyInline]
     actions = ["publish_selected", "cancel_selected", "finish_selected"]
+
+    @admin.display(description="Próximas ocorrências")
+    def upcoming_occurrences_display(self, obj):
+        if obj is None or obj.pk is None:
+            return "Salve a atividade para adicionar programações."
+        add_url = f"{reverse('admin:schedules_schedule_add')}?activity={obj.pk}"
+        link = format_html('<a href="{}">Adicionar programação</a>', add_url)
+        if obj.status not in PUBLIC_STATUSES:
+            return format_html("Sem ocorrências: a atividade não está publicada. {}", link)
+        occurrences = upcoming_occurrences(obj)
+        if not occurrences:
+            return format_html("Sem próximas ocorrências. {}", link)
+        items = format_html_join(
+            "",
+            "<li>{}, {}–{}</li>",
+            (
+                (
+                    item.date.strftime("%d/%m/%Y"),
+                    item.start_time.strftime("%H:%M"),
+                    item.end_time.strftime("%H:%M"),
+                )
+                for item in occurrences
+            ),
+        )
+        return format_html("<ul>{}</ul>{}", items, link)
 
     def get_form(self, request, obj=None, **kwargs):
         request._editing_obj = obj
