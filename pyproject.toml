@@ -8,11 +8,12 @@ omit = [
     "manage.py",
     "config/wsgi.py",
     "config/asgi.py",
+    "*/migrations/*",
 ]
 
 [tool.ruff]
 line-length = 100
-exclude = [".venv"]
+exclude = [".venv", "*/migrations/*"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I"]
