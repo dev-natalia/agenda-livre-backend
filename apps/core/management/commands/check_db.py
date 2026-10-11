@@ -1,6 +1,10 @@
+import logging
+
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
 from django.db.utils import Error
+
+logger = logging.getLogger(__name__)
 
 # (trechos da mensagem do driver, descrição exibida). A mensagem original nunca é exibida.
 _FAILURE_TYPES = (
@@ -35,7 +39,9 @@ class Command(BaseCommand):
                 cursor.execute("SELECT 1")
                 cursor.fetchone()
         except Error as error:
+            failure = classify_failure(error)
+            logger.error("Falha de conexão com o banco %s:%s: %s", db["HOST"], db["PORT"], failure)
             raise CommandError(
-                f"Não foi possível conectar ao banco {target}: {classify_failure(error)}."
+                f"Não foi possível conectar ao banco {target}: {failure}."
             ) from None
         self.stdout.write(self.style.SUCCESS(f"Conexão com o banco {target} funcionou."))

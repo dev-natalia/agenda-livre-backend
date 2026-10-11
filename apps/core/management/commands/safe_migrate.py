@@ -1,6 +1,10 @@
+import logging
+
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection
+
+logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
@@ -24,4 +28,13 @@ class Command(BaseCommand):
             answer = input("Aplicar as migrations neste banco? [s/N] ")
             if answer.strip().lower() != "s":
                 raise CommandError("Operação cancelada. Nenhuma alteração foi feita no banco.")
-        call_command("migrate", interactive=False, verbosity=options["verbosity"])
+        try:
+            call_command("migrate", interactive=False, verbosity=options["verbosity"])
+        except Exception as error:
+            logger.error(
+                "Falha ao aplicar migrations em %s:%s: %s",
+                db["HOST"],
+                db["PORT"],
+                type(error).__name__,
+            )
+            raise

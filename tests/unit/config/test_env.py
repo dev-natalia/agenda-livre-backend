@@ -120,3 +120,37 @@ def test_load_dotenv_reads_file_from_base_dir():
         env.load_dotenv()
 
     read_env.assert_called_once_with(env.BASE_DIR / ".env")
+
+
+def test_get_int_uses_default_when_empty(clean_env):
+    assert env.get_int("LOG_MAX_BYTES", 1048576, 1) == 1048576
+
+
+def test_get_int_reads_value(clean_env):
+    clean_env.setenv("LOG_BACKUP_COUNT", " 0 ")
+
+    assert env.get_int("LOG_BACKUP_COUNT", 5, 0) == 0
+
+
+@pytest.mark.parametrize("raw", ["abc", "1.5", "-3", "0"])
+def test_get_int_rejects_invalid_without_showing_value(clean_env, raw):
+    clean_env.setenv("LOG_MAX_BYTES", raw)
+
+    with pytest.raises(ImproperlyConfigured) as exc:
+        env.get_int("LOG_MAX_BYTES", 10, 1)
+
+    assert "LOG_MAX_BYTES" in str(exc.value)
+    assert raw not in str(exc.value)
+
+
+def test_get_log_level_default_and_case_insensitive(clean_env):
+    assert env.get_log_level() == "ERROR"
+    clean_env.setenv("LOG_LEVEL", "warning")
+    assert env.get_log_level() == "WARNING"
+
+
+def test_get_log_level_rejects_unknown(clean_env):
+    clean_env.setenv("LOG_LEVEL", "DEBUG")
+
+    with pytest.raises(ImproperlyConfigured, match="LOG_LEVEL"):
+        env.get_log_level()

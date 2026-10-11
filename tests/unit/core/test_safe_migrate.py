@@ -64,3 +64,19 @@ def test_noinput_migrates_without_asking():
     assert "db.exemplo.local:5432/agenda" in text
     ask.assert_not_called()
     migrate.assert_called_once()
+
+
+def test_migration_failure_is_logged_and_reraised(caplog):
+    with (
+        patch(f"{MODULE}.connection", _fake_connection()),
+        patch(f"{MODULE}.call_command", side_effect=RuntimeError(f"falha {PASSWORD}")),
+        caplog.at_level("ERROR", logger=MODULE),
+    ):
+        with pytest.raises(RuntimeError):
+            call_command("safe_migrate", interactive=False, stdout=StringIO())
+
+    message = next(item for item in caplog.records if item.levelname == "ERROR").getMessage()
+    assert "RuntimeError" in message
+    assert "db.exemplo.local" in message
+    assert "5432" in message
+    assert PASSWORD not in message

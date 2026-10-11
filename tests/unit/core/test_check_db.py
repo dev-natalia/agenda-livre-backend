@@ -67,3 +67,19 @@ def test_failure_does_not_echo_raw_driver_message():
             call_command("check_db", stdout=StringIO())
 
     assert PASSWORD not in str(exc.value)
+
+
+def test_connection_failure_is_logged_without_password_or_driver_text(caplog):
+    error = OperationalError(f"password authentication failed for user x {PASSWORD}")
+
+    with patch(TARGET, _fake_connection(error)):
+        with caplog.at_level("ERROR", logger="apps.core.management.commands.check_db"):
+            with pytest.raises(CommandError):
+                call_command("check_db", stdout=StringIO())
+
+    record = next(item for item in caplog.records if item.levelname == "ERROR")
+    message = record.getMessage()
+    assert "credenciais recusadas" in message
+    assert "db.exemplo.local" in message
+    assert "5432" in message
+    assert PASSWORD not in message
