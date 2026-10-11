@@ -113,9 +113,20 @@ python manage.py seed_catalog
 ```
 
 O comando é seguro para repetir: só cria o que não existe (pelo identificador) e não altera registros
-editados no painel. O bairro "Navegantes" do CEU Navegantes é provisório e deve ser confirmado pela equipe.
+editados no painel. O bairro "Cantinho do Céu" do CEU Navegantes é provisório e deve ser confirmado pela equipe.
 Para retirar uma unidade ou categoria de uso, desative-a (ação "Desativar selecionados" ou desmarque
 "Ativo"); os vínculos existentes são preservados.
+
+## Carga inicial de públicos-alvo e atividades
+
+O mesmo `seed_catalog` carrega as opções de público-alvo (Crianças, Adolescentes, Adultos, Pessoas idosas
+e Todas as idades). A lista é provisória e pode ser mantida em `/admin/` ("Públicos-alvo").
+
+As atividades são gerenciadas em "Atividades". Toda atividade nasce como rascunho e a situação só muda
+pelas ações da lista: "Publicar selecionadas" (exige título, descrição, unidade e categoria ativas e ao
+menos um público-alvo), "Cancelar selecionadas" e "Encerrar selecionadas" (só para publicadas). Atividades
+canceladas ou encerradas podem ser publicadas de novo. Só as publicadas são públicas, e só rascunhos podem
+ser excluídos; as demais devem ser canceladas ou encerradas.
 
 ## Frontend (CORS)
 

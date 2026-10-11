@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 
+from apps.audiences.models import TargetAudience
 from apps.categories.models import Category
 from apps.units.models import Unit
 
@@ -53,6 +54,16 @@ CATEGORIES = [
 ]
 
 
+# Opções iniciais de público-alvo; a lista é provisória e pode ser mantida pelo Admin.
+TARGET_AUDIENCES = [
+    {"slug": "criancas", "name": "Crianças"},
+    {"slug": "adolescentes", "name": "Adolescentes"},
+    {"slug": "adultos", "name": "Adultos"},
+    {"slug": "pessoas-idosas", "name": "Pessoas idosas"},
+    {"slug": "todas-as-idades", "name": "Todas as idades"},
+]
+
+
 def _load(manager, items):
     created = 0
     for item in items:
@@ -69,6 +80,7 @@ class Command(BaseCommand):
         for label, manager, items in (
             ("Unidades", Unit.objects, UNITS),
             ("Categorias", Category.objects, CATEGORIES),
+            ("Públicos-alvo", TargetAudience.objects, TARGET_AUDIENCES),
         ):
             created, existing = _load(manager, items)
             self.stdout.write(f"{label}: {created} criada(s), {existing} já existiam.")
