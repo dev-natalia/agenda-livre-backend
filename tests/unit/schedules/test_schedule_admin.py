@@ -87,56 +87,11 @@ def test_save_model_on_edit_keeps_creator(model_admin):
     assert obj.updated_by is request.user
 
 
-def _form(chosen, current):
-    schedule = MagicMock()
-    schedule.weekdays.values_list.return_value = current
-    form = SimpleNamespace(instance=schedule, cleaned_data={"weekdays": chosen})
-    return form, schedule
-
-
-def _save_related(model_admin, form):
+def test_save_related_syncs_chosen_weekdays(model_admin):
+    schedule = object()
+    form = SimpleNamespace(instance=schedule, cleaned_data={"weekdays": [2, 4]})
     with patch.object(admin.ModelAdmin, "save_related"), patch.object(
-        schedule_admin_module, "ScheduleWeekday"
-    ) as weekday_model:
+        schedule_admin_module, "sync_weekdays"
+    ) as sync:
         model_admin.save_related(_request(), form, [], change=True)
-    weekday_model.objects.created = [
-        call.kwargs["weekday"] for call in weekday_model.call_args_list
-    ]
-    return weekday_model.objects.bulk_create, weekday_model
-
-
-def test_save_related_creates_only_missing_days(model_admin):
-    form, schedule = _form([2, 4], [2])
-    bulk, weekday_model = _save_related(model_admin, form)
-    weekday_model.assert_called_once_with(schedule=schedule, weekday=4)
-    bulk.assert_called_once()
-    schedule.weekdays.filter.assert_not_called()
-
-
-def test_save_related_removes_only_extra_days(model_admin):
-    form, schedule = _form([4, 6], [2, 4])
-    bulk, weekday_model = _save_related(model_admin, form)
-    schedule.weekdays.filter.assert_called_once_with(weekday__in={2})
-    schedule.weekdays.filter.return_value.delete.assert_called_once()
-    weekday_model.assert_called_once_with(schedule=schedule, weekday=6)
-    bulk.assert_called_once()
-
-
-def test_save_related_changes_nothing_when_sets_match(model_admin):
-    form, schedule = _form([2, 4], [4, 2])
-    bulk, _ = _save_related(model_admin, form)
-    bulk.assert_not_called()
-    schedule.weekdays.filter.assert_not_called()
-
-
-def test_save_related_switch_to_one_time_clears_days(model_admin):
-    form, schedule = _form([], [2, 4])
-    bulk, _ = _save_related(model_admin, form)
-    schedule.weekdays.filter.assert_called_once_with(weekday__in={2, 4})
-    bulk.assert_not_called()
-
-
-def test_save_related_missing_cleaned_value_means_no_days(model_admin):
-    form, schedule = _form(None, [3])
-    _save_related(model_admin, form)
-    schedule.weekdays.filter.assert_called_once_with(weekday__in={3})
+    sync.assert_called_once_with(schedule, [2, 4])

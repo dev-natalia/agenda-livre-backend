@@ -2,8 +2,12 @@ from django import forms
 
 from apps.schedules.models import Schedule, ScheduleWeekday
 
+SCHEDULE_FIELDS = ("schedule_type", "start_date", "end_date", "start_time", "end_time")
 
-class ScheduleAdminForm(forms.ModelForm):
+
+class WeekdaysFormMixin(forms.ModelForm):
+    """Campo de dias da semana e regras que cruzam o tipo da programação e os dias."""
+
     weekdays = forms.TypedMultipleChoiceField(
         label="Dias da semana",
         choices=ScheduleWeekday.Weekday.choices,
@@ -12,10 +16,6 @@ class ScheduleAdminForm(forms.ModelForm):
         widget=forms.CheckboxSelectMultiple,
         help_text="Obrigatório para programações recorrentes. Deve ficar vazio nas pontuais.",
     )
-
-    class Meta:
-        model = Schedule
-        fields = ("activity", "schedule_type", "start_date", "end_date", "start_time", "end_time")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -32,3 +32,17 @@ class ScheduleAdminForm(forms.ModelForm):
         elif schedule_type == Schedule.Type.ONE_TIME and days:
             self.add_error("weekdays", "Programação pontual não usa dias da semana.")
         return cleaned
+
+
+class ScheduleAdminForm(WeekdaysFormMixin):
+    class Meta:
+        model = Schedule
+        fields = ("activity", *SCHEDULE_FIELDS)
+
+
+class ScheduleInlineForm(WeekdaysFormMixin):
+    """Formulário da programação dentro da página da atividade (a atividade vem do inline)."""
+
+    class Meta:
+        model = Schedule
+        fields = SCHEDULE_FIELDS

@@ -9,7 +9,7 @@ por URL direta. Não há endpoints REST nesta feature.
 | Rota | Função |
 |---|---|
 | `/admin/schedules/schedule/` | Lista, filtros e busca de programações |
-| `/admin/schedules/schedule/add/` | Cadastrar programação (aceita `?activity=<id>` para preencher a atividade) |
+| `/admin/schedules/schedule/add/` | Cadastrar programação (aceita `?activity=<id>` para preencher a atividade; também é possível cadastrar direto na página da atividade) |
 | `/admin/schedules/schedule/<id>/change/` | Editar ou excluir programação |
 | `/admin/activities/activity/<id>/change/` | Mostra as programações e as próximas ocorrências da atividade |
 
@@ -40,12 +40,12 @@ por URL direta. Não há endpoints REST nesta feature.
 
 ## Página da atividade
 
-- Inline "Programações" somente leitura: tipo, período, horário e dias, com link para editar. Sem
-  adicionar nem excluir ali.
-- Campo "Próximas ocorrências": até 10 datas com horário, em ordem, para atividade publicada; para as
+- Inline "Programações" editável, também na tela de cadastro da atividade: tipo, datas, horários e dias
+  da semana (checkboxes). Permite adicionar, editar e remover programações; autoria e regras de
+  validação são as mesmas do formulário da programação.
+- Campo "Próximas ocorrências" (na criação mostra "Salve a atividade para ver as próximas ocorrências."): até 10 datas com horário, em ordem, para atividade publicada; para as
   demais situações, o texto "Sem ocorrências: a atividade não está publicada."; sem datas futuras,
   "Sem próximas ocorrências."
-- Link "Adicionar programação" para `/admin/schedules/schedule/add/?activity=<id>`.
 - A exclusão de atividade com programações é recusada pelo Admin (objetos protegidos).
 
 ## Ações

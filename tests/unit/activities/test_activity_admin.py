@@ -12,11 +12,13 @@ from apps.activities.admin import (
     ActivityAdmin,
     ActivityTargetAudienceFormSet,
     ActivityTargetAudienceInline,
-    ScheduleReadOnlyInline,
+    ScheduleInline,
 )
 from apps.activities.models import Activity, ActivityTargetAudience
 from apps.activities.services import StatusChangeError
 from apps.core.admin import ActiveOnlyForeignKeyMixin
+from apps.schedules.forms import ScheduleInlineForm
+from apps.schedules.models import Schedule
 
 Status = Activity.Status
 
@@ -54,7 +56,7 @@ def test_form_configuration(model_admin):
         "updated_at",
         "upcoming_occurrences_display",
     )
-    assert model_admin.inlines == [ActivityTargetAudienceInline, ScheduleReadOnlyInline]
+    assert model_admin.inlines == [ActivityTargetAudienceInline, ScheduleInline]
 
 
 def test_actions_order_and_labels(model_admin):
@@ -307,19 +309,12 @@ def test_inline_uses_given_queryset():
     assert result["queryset"] is given.filter.return_value
 
 
-def test_schedule_inline_is_read_only():
-    inline = ScheduleReadOnlyInline(Activity, admin.site)
-    assert inline.has_add_permission(_request()) is False
-    assert inline.can_delete is False
-    assert inline.extra == 0
-    assert inline.show_change_link is True
-    assert set(inline.readonly_fields) == set(inline.fields)
-
-
-def test_schedule_inline_weekday_names():
-    inline = ScheduleReadOnlyInline(Activity, admin.site)
-    schedule = SimpleNamespace(weekdays=MagicMock(all=lambda: [SimpleNamespace(weekday=4)]))
-    assert inline.weekday_names(schedule) == "Qui"
+def test_schedule_inline_configuration():
+    inline = ScheduleInline(Activity, admin.site)
+    assert inline.model is Schedule
+    assert inline.form is ScheduleInlineForm
+    assert inline.extra == 1
+    assert inline.verbose_name_plural == "Programações"
 
 
 def test_occurrences_display_without_object(model_admin):
@@ -330,18 +325,15 @@ def test_occurrences_display_without_object(model_admin):
 def test_occurrences_display_not_published(model_admin, status):
     activity = Activity(status=status)
     with patch.object(activity_admin_module, "upcoming_occurrences") as service:
-        text = str(model_admin.upcoming_occurrences_display(activity))
+        text = model_admin.upcoming_occurrences_display(activity)
     service.assert_not_called()
-    assert "a atividade não está publicada" in text
-    assert f"?activity={activity.pk}" in text
+    assert text == "Sem ocorrências: a atividade não está publicada."
 
 
 def test_occurrences_display_empty(model_admin):
     activity = Activity(status=Status.PUBLISHED)
     with patch.object(activity_admin_module, "upcoming_occurrences", return_value=[]):
-        text = str(model_admin.upcoming_occurrences_display(activity))
-    assert "Sem próximas ocorrências." in text
-    assert "Adicionar programação" in text
+        assert model_admin.upcoming_occurrences_display(activity) == "Sem próximas ocorrências."
 
 
 def test_occurrences_display_lists_occurrences(model_admin):
@@ -354,4 +346,47 @@ def test_occurrences_display_lists_occurrences(model_admin):
         text = str(model_admin.upcoming_occurrences_display(activity))
     assert "<li>10/11/2026, 14:00–15:30</li>" in text
     assert "<li>12/11/2026, 09:00–10:00</li>" in text
-    assert "Adicionar programação" in text
+
+
+def _schedule_formset(saved, deleted=(), forms=()):
+    formset = MagicMock()
+    formset.model = Schedule
+    formset.save.return_value = saved
+    formset.deleted_objects = list(deleted)
+    formset.forms = list(forms)
+    return formset
+
+
+def _saved(adding):
+    return SimpleNamespace(_state=SimpleNamespace(adding=adding), save=MagicMock())
+
+
+def test_save_formset_delegates_other_models(model_admin):
+    formset = MagicMock()
+    formset.model = ActivityTargetAudience
+    with patch.object(admin.ModelAdmin, "save_formset") as parent:
+        model_admin.save_formset(_request(), None, formset, True)
+    parent.assert_called_once()
+
+
+def test_save_formset_sets_audit_and_syncs_weekdays(model_admin):
+    request = _request()
+    new, old = _saved(True), _saved(False)
+    old.created_by = "original"
+    removed = MagicMock()
+    forms = [
+        SimpleNamespace(instance=new, cleaned_data={"weekdays": [2, 4]}),
+        SimpleNamespace(instance=old, cleaned_data={"weekdays": []}),
+        SimpleNamespace(instance=_saved(False), cleaned_data={"weekdays": [1]}),
+    ]
+    formset = _schedule_formset([new, old], deleted=[removed], forms=forms)
+    with patch.object(activity_admin_module, "sync_weekdays") as sync:
+        model_admin.save_formset(request, None, formset, True)
+    assert new.created_by is request.user
+    assert old.created_by == "original"
+    assert new.updated_by is request.user and old.updated_by is request.user
+    new.save.assert_called_once()
+    old.save.assert_called_once()
+    removed.delete.assert_called_once()
+    assert [call.args for call in sync.call_args_list] == [(new, [2, 4]), (old, [])]
+    formset.save_m2m.assert_called_once()

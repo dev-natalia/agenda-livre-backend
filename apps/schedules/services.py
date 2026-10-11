@@ -4,7 +4,7 @@ from datetime import date, time, timedelta
 from django.utils import timezone
 
 from apps.activities.models import PUBLIC_STATUSES
-from apps.schedules.models import Schedule
+from apps.schedules.models import Schedule, ScheduleWeekday
 
 WEEKDAY_ABBREVIATIONS = {1: "Seg", 2: "Ter", 3: "Qua", 4: "Qui", 5: "Sex", 6: "Sáb", 7: "Dom"}
 
@@ -57,3 +57,16 @@ def format_weekdays(schedule):
     """Nomes abreviados dos dias da programação, ou "—" quando não houver."""
     days = sorted(item.weekday for item in schedule.weekdays.all())
     return ", ".join(WEEKDAY_ABBREVIATIONS[day] for day in days) or "—"
+
+
+def sync_weekdays(schedule, chosen):
+    """Deixa os dias gravados da programação exatamente iguais aos escolhidos."""
+    chosen = set(chosen or [])
+    current = set(schedule.weekdays.values_list("weekday", flat=True))
+    if current - chosen:
+        schedule.weekdays.filter(weekday__in=current - chosen).delete()
+    missing = sorted(chosen - current)
+    if missing:
+        ScheduleWeekday.objects.bulk_create(
+            [ScheduleWeekday(schedule=schedule, weekday=day) for day in missing]
+        )

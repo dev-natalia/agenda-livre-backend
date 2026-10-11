@@ -1,8 +1,8 @@
 from django.contrib import admin
 
 from apps.schedules.forms import ScheduleAdminForm
-from apps.schedules.models import Schedule, ScheduleWeekday
-from apps.schedules.services import format_weekdays
+from apps.schedules.models import Schedule
+from apps.schedules.services import format_weekdays, sync_weekdays
 
 
 @admin.register(Schedule)
@@ -52,13 +52,4 @@ class ScheduleAdmin(admin.ModelAdmin):
 
     def save_related(self, request, form, formsets, change):
         super().save_related(request, form, formsets, change)
-        schedule = form.instance
-        chosen = set(form.cleaned_data.get("weekdays") or [])
-        current = set(schedule.weekdays.values_list("weekday", flat=True))
-        if current - chosen:
-            schedule.weekdays.filter(weekday__in=current - chosen).delete()
-        missing = sorted(chosen - current)
-        if missing:
-            ScheduleWeekday.objects.bulk_create(
-                [ScheduleWeekday(schedule=schedule, weekday=day) for day in missing]
-            )
+        sync_weekdays(form.instance, form.cleaned_data.get("weekdays"))

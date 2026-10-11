@@ -121,6 +121,8 @@ português. Os diretórios de teste existentes não têm `__init__.py`; seguir o
 
 **Checkpoint**: ocorrências calculadas e visíveis na atividade; `pytest` verde.
 
+- [X] T033 [US4] Revisão (pedida após testes no navegador): trocar `ScheduleReadOnlyInline` por `ScheduleInline` editável (`ScheduleInlineForm` em `apps/schedules/forms.py`, compartilhando o campo e as regras de dias com `ScheduleAdminForm`), mover a sincronização dos dias para `sync_weekdays` em `apps/schedules/services.py`, preencher autoria e sincronizar dias em `ActivityAdmin.save_formset`, e remover o link "Adicionar programação". Testes ajustados em `tests/unit/activities/test_activity_admin.py`, `tests/unit/schedules/` (T025 a T027 ficam substituídas por esta tarefa)
+
 ---
 
 ## Phase 7: Polish & Cross-Cutting Concerns

@@ -130,8 +130,8 @@ ser excluídos; as demais devem ser canceladas ou encerradas.
 
 ## Programações e ocorrências
 
-As datas e horários das atividades são cadastrados em "Programações", ou pelo link "Adicionar programação"
-na página da atividade (que já preenche a atividade). Há dois tipos:
+As datas e horários das atividades são cadastrados na própria página da atividade (bloco "Programações", inclusive ao criar a atividade) ou
+em "Programações", que lista e filtra todas. Há dois tipos:
 
 - **Pontual**: uma única data (data final igual à inicial) e nenhum dia da semana.
 - **Recorrente**: período de validade (datas inclusivas) e ao menos um dia da semana (segunda a domingo).

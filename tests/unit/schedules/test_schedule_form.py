@@ -6,7 +6,7 @@ import pytest
 from django import forms
 from django.core.exceptions import ValidationError
 
-from apps.schedules.forms import ScheduleAdminForm
+from apps.schedules.forms import ScheduleAdminForm, ScheduleInlineForm
 from apps.schedules.models import Schedule
 
 Type = Schedule.Type
@@ -38,6 +38,21 @@ def test_meta():
         "start_time",
         "end_time",
     )
+
+
+def test_inline_form_has_no_activity_field():
+    assert ScheduleInlineForm.Meta.model is Schedule
+    assert "activity" not in ScheduleInlineForm.Meta.fields
+    assert "weekdays" in ScheduleInlineForm.base_fields
+
+
+def test_inline_form_applies_the_same_weekday_rules():
+    form = ScheduleInlineForm.__new__(ScheduleInlineForm)
+    form.cleaned_data = {"schedule_type": Type.RECURRING, "weekdays": []}
+    form.add_error = MagicMock()
+    with patch.object(forms.ModelForm, "clean", return_value=form.cleaned_data):
+        form.clean()
+    form.add_error.assert_called_once_with("weekdays", "Selecione ao menos um dia da semana.")
 
 
 def test_weekdays_field():

@@ -64,12 +64,16 @@ desenho que a spec deixou para o plano.
 
 ## 7. Programações dentro da página da atividade
 
-- **Decision**: `ActivityAdmin` ganha um inline tabular somente leitura (tipo, período, horário, dias)
-  com `show_change_link`, sem adicionar/excluir, e um campo somente leitura "próximas ocorrências" com
-  link "Adicionar programação" que abre o formulário da programação com a atividade preenchida (`?
-  activity=<id>`). A edição acontece no formulário da programação.
-- **Rationale**: atende FR-015 e FR-016 sem inline aninhado (ver item 1).
-- **Alternatives considered**: inline editável com os dias como inline próprio (não suportado).
+- **Decision**: `ActivityAdmin` ganha um inline empilhado **editável** de `Schedule`
+  (`ScheduleInline`, com `ScheduleInlineForm`), que permite cadastrar a programação já ao criar a
+  atividade. Os dias da semana são o mesmo campo de checkboxes do formulário da programação, então não
+  há inline aninhado. `ActivityAdmin.save_formset()` preenche `created_by`/`updated_by` e sincroniza os
+  dias (`sync_weekdays`, compartilhada com `ScheduleAdmin`). O campo somente leitura "próximas
+  ocorrências" fica na mesma página. A lista "Programações" continua existindo para ver e filtrar tudo.
+- **Rationale**: atende FR-015 e FR-016 com menos cliques. A versão inicial do plano usava um inline
+  somente leitura por achar que o Admin não permitia editar; o campo de checkboxes torna isso possível.
+- **Alternatives considered**: inline somente leitura com link para o formulário da programação (mais
+  cliques, atividade precisa existir antes); inline de dias dentro do inline (não suportado).
 
 ## 8. Exclusão
 

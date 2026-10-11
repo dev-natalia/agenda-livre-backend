@@ -11,6 +11,7 @@ from apps.schedules.services import (
     Occurrence,
     format_weekdays,
     iter_occurrences,
+    sync_weekdays,
     upcoming_occurrences,
 )
 
@@ -150,3 +151,39 @@ def test_format_weekdays():
     every_day = SimpleNamespace(weekdays=_weekdays([1, 2, 3, 4, 5, 6, 7]))
     assert format_weekdays(every_day) == "Seg, Ter, Qua, Qui, Sex, Sáb, Dom"
     assert format_weekdays(SimpleNamespace(weekdays=_weekdays([]))) == "—"
+
+
+def _sync(chosen, current):
+    schedule = MagicMock()
+    schedule.weekdays.values_list.return_value = current
+    with patch.object(services, "ScheduleWeekday") as weekday_model:
+        sync_weekdays(schedule, chosen)
+    return schedule, weekday_model
+
+
+def test_sync_creates_only_missing_days():
+    schedule, model = _sync([2, 4], [2])
+    model.assert_called_once_with(schedule=schedule, weekday=4)
+    model.objects.bulk_create.assert_called_once()
+    schedule.weekdays.filter.assert_not_called()
+
+
+def test_sync_removes_only_extra_days():
+    schedule, model = _sync([4, 6], [2, 4])
+    schedule.weekdays.filter.assert_called_once_with(weekday__in={2})
+    schedule.weekdays.filter.return_value.delete.assert_called_once()
+    model.assert_called_once_with(schedule=schedule, weekday=6)
+
+
+def test_sync_changes_nothing_when_sets_match():
+    schedule, model = _sync([2, 4], [4, 2])
+    model.objects.bulk_create.assert_not_called()
+    schedule.weekdays.filter.assert_not_called()
+
+
+def test_sync_empty_or_missing_clears_days():
+    schedule, model = _sync([], [2, 4])
+    schedule.weekdays.filter.assert_called_once_with(weekday__in={2, 4})
+    model.objects.bulk_create.assert_not_called()
+    schedule, _ = _sync(None, [3])
+    schedule.weekdays.filter.assert_called_once_with(weekday__in={3})

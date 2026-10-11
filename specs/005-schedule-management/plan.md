@@ -44,7 +44,7 @@ dentro do período e até o limite pedido
 sem exceções por ocorrência; sem endpoints públicos
 
 **Scale/Scope**: dezenas de programações por atividade no máximo; 2 modelos, 1 `ModelAdmin` com
-formulário customizado, 1 inline somente leitura em `ActivityAdmin`, 1 módulo de serviço
+formulário customizado, 1 inline editável em `ActivityAdmin`, 1 módulo de serviço
 
 ## Constitution Check
 
@@ -93,7 +93,7 @@ apps/schedules/
 ├── admin.py                 # ScheduleAdmin (sincroniza dias em save_related, autoria, filtros)
 └── migrations/0001_initial.py
 apps/activities/
-└── admin.py                 # + inline somente leitura de programações e campo "próximas ocorrências"
+└── admin.py                 # + inline editável de programações, save_formset e campo "próximas ocorrências"
 tests/unit/
 ├── schedules/test_schedule_model.py
 ├── schedules/test_schedule_form.py
@@ -105,6 +105,6 @@ README.md                    # seção sobre programações e ocorrências
 
 **Structure Decision**: o app `schedules` existe desde a feature 001 e recebe os modelos. O Django não
 oferece inline aninhado (programação → dias), por isso os dias são um campo do formulário da
-programação e o inline na atividade é somente leitura, com link para editar. O cálculo fica em
+programação e o inline na atividade é editável, reaproveitando esse campo. O cálculo fica em
 `services.py`, e não no `ModelAdmin`, para ser testável sem banco e reutilizável pela API de consulta
 futura.
