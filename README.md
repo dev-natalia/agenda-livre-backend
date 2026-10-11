@@ -102,6 +102,21 @@ excluir todos os cadastros e gerenciar contas). Uma conta só opera o painel se 
 **Limitações desta versão:** não há bloqueio por tentativas de login nem recuperação de senha por e-mail.
 Se alguém perder a senha, outro administrador a redefine pelo painel. A consulta pública não exige login.
 
+## Carga inicial de unidades e categorias
+
+Unidades e categorias são gerenciadas em `/admin/` ("Unidades" e "Categorias"). Para preparar o ambiente
+com o CEU Navegantes e as oito categorias iniciais:
+
+```bash
+python manage.py safe_migrate
+python manage.py seed_catalog
+```
+
+O comando é seguro para repetir: só cria o que não existe (pelo identificador) e não altera registros
+editados no painel. O bairro "Navegantes" do CEU Navegantes é provisório e deve ser confirmado pela equipe.
+Para retirar uma unidade ou categoria de uso, desative-a (ação "Desativar selecionados" ou desmarque
+"Ativo"); os vínculos existentes são preservados.
+
 ## Frontend (CORS)
 
 O frontend fica em **outro repositório** e roda em outra origem local. O navegador só permite que ele chame
