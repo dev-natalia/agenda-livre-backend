@@ -170,6 +170,7 @@ def _run(existing):
         patch.object(seed_demo, "_by_slug", return_value=MagicMock()),
         patch.object(seed_demo.Activity, "objects") as activities,
         patch.object(seed_demo, "_create_activity") as create,
+        patch.object(seed_demo, "_attach_demo_images", return_value=(0, 0)),
         patch.object(seed_demo.transaction, "atomic"),
     ):
         activities.filter.return_value.exists.return_value = existing

@@ -92,6 +92,17 @@ class AudienceSerializer(serializers.Serializer):
     name = serializers.CharField()
 
 
+def image_payload(activity):
+    """Dados públicos da imagem da atividade, ou `None` quando ela não tem imagem."""
+    if not activity.image:
+        return None
+    return {
+        "url": activity.image.url,
+        "alt": activity.image_alt,
+        "decorative": activity.image_decorative,
+    }
+
+
 class ActivityListItemSerializer(serializers.Serializer):
     """Recebe o par (atividade, próxima ocorrência) montado por `build_listing`."""
 
@@ -105,6 +116,7 @@ class ActivityListItemSerializer(serializers.Serializer):
             "unit": UnitSummarySerializer(activity.unit).data,
             "category": CategorySummarySerializer(activity.category).data,
             "next_occurrence": OccurrenceSerializer(occurrence).data if occurrence else None,
+            "image": image_payload(activity),
         }
 
 
@@ -136,8 +148,12 @@ class ActivityDetailSerializer(serializers.Serializer):
     category = CategorySummarySerializer()
     target_audiences = AudienceSerializer(many=True, source="target_audiences.all")
     external_registration_url = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
     schedules = serializers.SerializerMethodField()
     next_occurrences = serializers.SerializerMethodField()
+
+    def get_image(self, activity):
+        return image_payload(activity)
 
     def get_external_registration_url(self, activity):
         url = (activity.external_registration_url or "").strip()

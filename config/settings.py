@@ -6,6 +6,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from config import env
 from config.logging_config import build_logging, log_startup_failure, resolve_log_dir
+from config.storage import build_storages
 
 try:
     _required = env.require_env(env.REQUIRED_VARS)
@@ -108,6 +109,9 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+
+# Imagens das atividades no Amazon S3 (o banco guarda só o nome do objeto).
+STORAGES = build_storages(_required)
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
@@ -124,5 +128,5 @@ LOGGING = build_logging(
     env.get_log_level(),
     env.get_int("LOG_MAX_BYTES", 1048576, 1),
     env.get_int("LOG_BACKUP_COUNT", 5, 0),
-    (SECRET_KEY, _required["DB_PASSWORD"]),
+    (SECRET_KEY, _required["DB_PASSWORD"], _required["AWS_SECRET_ACCESS_KEY"]),
 )

@@ -1,15 +1,26 @@
+import logging
+
 from django.contrib import admin, messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, SuspiciousOperation, ValidationError
+from django.db import transaction
 from django.db.models import Q
 from django.forms.models import BaseInlineFormSet
+from django.http import Http404, HttpResponseRedirect
 from django.utils.html import format_html, format_html_join
 
+from apps.activities.forms import ActivityAdminForm
+from apps.activities.images import delete_stored_file
 from apps.activities.models import PUBLIC_STATUSES, Activity, ActivityTargetAudience
 from apps.activities.services import StatusChangeError, change_status
 from apps.core.admin import ActiveOnlyForeignKeyMixin
 from apps.schedules.forms import ScheduleInlineForm
 from apps.schedules.models import Schedule
 from apps.schedules.services import sync_weekdays, upcoming_occurrences
+
+logger = logging.getLogger(__name__)
+
+IMAGE_STORAGE_FAILURE = "Não foi possível guardar a imagem agora. Tente novamente."
+PASSTHROUGH_ERRORS = (ValidationError, PermissionDenied, Http404, SuspiciousOperation)
 
 
 class ActivityTargetAudienceFormSet(BaseInlineFormSet):
@@ -69,7 +80,9 @@ class ActivityAdmin(ActiveOnlyForeignKeyMixin, admin.ModelAdmin):
     list_filter = ("status", "unit", "category")
     search_fields = ("title", "summary")
     list_select_related = ("unit", "category")
+    form = ActivityAdminForm
     readonly_fields = (
+        "image_preview",
         "status",
         "slug",
         "created_by",
@@ -86,6 +99,10 @@ class ActivityAdmin(ActiveOnlyForeignKeyMixin, admin.ModelAdmin):
         "category",
         "target_audience_notes",
         "external_registration_url",
+        "image",
+        "image_preview",
+        "image_alt",
+        "image_decorative",
         "status",
         "slug",
         "created_by",
@@ -96,6 +113,28 @@ class ActivityAdmin(ActiveOnlyForeignKeyMixin, admin.ModelAdmin):
     )
     inlines = [ActivityTargetAudienceInline, ScheduleInline]
     actions = ["publish_selected", "cancel_selected", "finish_selected"]
+
+    @admin.display(description="Imagem atual")
+    def image_preview(self, obj):
+        if obj is None or not obj.image:
+            return "Sem imagem."
+        return format_html(
+            '<img src="{}" alt="{}" style="max-width:240px;height:auto">',
+            obj.image.url,
+            obj.image_alt,
+        )
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        """Falha do armazenamento no envio da imagem volta ao formulário, sem erro interno."""
+        try:
+            return super().changeform_view(request, object_id, form_url, extra_context)
+        except Exception as error:
+            uploading = request.method == "POST" and "image" in request.FILES
+            if not uploading or isinstance(error, PASSTHROUGH_ERRORS):
+                raise
+            logger.error("Falha ao guardar a imagem da atividade (%s).", type(error).__name__)
+            self.message_user(request, IMAGE_STORAGE_FAILURE, messages.ERROR)
+            return HttpResponseRedirect(request.get_full_path())
 
     @admin.display(description="Próximas ocorrências")
     def upcoming_occurrences_display(self, obj):
@@ -147,6 +186,16 @@ class ActivityAdmin(ActiveOnlyForeignKeyMixin, admin.ModelAdmin):
             obj.created_by = request.user
         obj.updated_by = request.user
         super().save_model(request, obj, form, change)
+        self._discard_replaced_image(form)
+
+    def _discard_replaced_image(self, form):
+        """Troca ou remoção da imagem: apaga o arquivo antigo depois do commit."""
+        if "image" not in getattr(form, "changed_data", ()):
+            return
+        previous = form.initial.get("image")
+        name = getattr(previous, "name", previous)
+        if name:
+            transaction.on_commit(lambda: delete_stored_file(name))
 
     def has_delete_permission(self, request, obj=None):
         allowed = super().has_delete_permission(request, obj)

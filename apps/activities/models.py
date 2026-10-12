@@ -6,6 +6,15 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils.text import slugify
 
+ALLOWED_IMAGE_EXTENSIONS = {"jpg": "jpg", "jpeg": "jpg", "png": "png", "webp": "webp"}
+IMAGE_ALT_MAX_LENGTH = 200
+
+
+def activity_image_path(instance, filename):
+    """Nome aleatório do arquivo: o nome enviado pela pessoa nunca entra no caminho."""
+    extension = str(filename).rsplit(".", 1)[-1].lower() if "." in str(filename) else ""
+    return f"activities/{uuid.uuid4().hex}.{ALLOWED_IMAGE_EXTENSIONS.get(extension, 'jpg')}"
+
 
 class Activity(models.Model):
     class Status(models.TextChoices):
@@ -35,6 +44,13 @@ class Activity(models.Model):
     description = models.TextField("Descrição")
     target_audience_notes = models.TextField("Observações sobre o público", blank=True)
     external_registration_url = models.URLField("Link externo", blank=True)
+    image = models.ImageField(
+        "Imagem", upload_to=activity_image_path, max_length=255, blank=True
+    )
+    image_alt = models.CharField(
+        "Texto alternativo da imagem", max_length=IMAGE_ALT_MAX_LENGTH, blank=True
+    )
+    image_decorative = models.BooleanField("Imagem decorativa", default=False)
     status = models.CharField(
         "Situação",
         max_length=20,
@@ -93,10 +109,29 @@ class Activity(models.Model):
         url = self.external_registration_url
         if url and urlparse(url).scheme not in ("http", "https"):
             errors["external_registration_url"] = "Informe um endereço que comece com http:// ou https://."
+        errors.update(self._clean_image_accessibility())
         if errors:
             raise ValidationError(errors)
         if not self.slug:
             self.slug = self._build_slug()
+
+    def _clean_image_accessibility(self):
+        """Com imagem: texto alternativo ou decorativa (nunca os dois). Sem imagem: limpa ambos."""
+        self.image_alt = self.image_alt.strip()
+        if not self.image:
+            self.image_alt = ""
+            self.image_decorative = False
+            return {}
+        if self.image_alt and self.image_decorative:
+            return {
+                "image_decorative": "Informe o texto alternativo ou marque a imagem como "
+                "decorativa, não os dois."
+            }
+        if not self.image_alt and not self.image_decorative:
+            return {
+                "image_alt": "Informe o texto alternativo da imagem ou marque-a como decorativa."
+            }
+        return {}
 
     def _build_slug(self):
         base = slugify(self.title) or "atividade"

@@ -126,7 +126,7 @@ def test_list_item_keys_and_formats():
     item = activity("Oficina de dança")
     data = ActivityListItemSerializer([(item, occurrence(date(2026, 11, 20)))], many=True).data
     assert list(data[0]) == [
-        "id", "title", "slug", "summary", "unit", "category", "next_occurrence",
+        "id", "title", "slug", "summary", "unit", "category", "next_occurrence", "image",
     ]  # fmt: skip
     assert set(data[0]["unit"]) == {"id", "name", "slug", "neighborhood"}
     assert set(data[0]["category"]) == {"id", "name", "slug"}
@@ -157,7 +157,7 @@ def test_detail_keys_and_hidden_fields():
     data, _ = _detail(item)
     assert list(data) == [
         "id", "title", "slug", "summary", "description", "target_audience_notes", "unit",
-        "category", "target_audiences", "external_registration_url", "schedules",
+        "category", "target_audiences", "external_registration_url", "image", "schedules",
         "next_occurrences",
     ]  # fmt: skip
     assert set(data["unit"]) == {"id", "name", "slug", "neighborhood", "address"}

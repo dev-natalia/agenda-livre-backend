@@ -16,6 +16,10 @@ def valid_env():
         "DB_NAME": "agenda",
         "DB_USER": "usuario",
         "DB_PASSWORD": "senha-super-secreta",
+        "AWS_ACCESS_KEY_ID": "chave-de-acesso-aws",
+        "AWS_SECRET_ACCESS_KEY": "chave-secreta-aws",
+        "AWS_STORAGE_BUCKET_NAME": "bucket-de-teste",
+        "AWS_S3_REGION_NAME": "sa-east-1",
     }
 
 

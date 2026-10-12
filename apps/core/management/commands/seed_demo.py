@@ -1,9 +1,14 @@
+import hashlib
+import io
 from datetime import date, datetime, timedelta
 
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
+from PIL import Image, ImageDraw
 
+from apps.activities.images import process_image
 from apps.activities.models import Activity, ActivityTargetAudience
 from apps.audiences.models import TargetAudience
 from apps.categories.models import Category
@@ -235,6 +240,78 @@ ACTIVITIES = [
 ]
 
 
+# Imagens fictícias: ilustrações geométricas geradas aqui mesmo, sem pessoas, marcas nem arquivos de
+# terceiros. Atividades fora deste mapa ficam sem imagem (para mostrar o visual alternativo).
+DEMO_ALT = "Ilustração geométrica fictícia de demonstração"
+IMAGE_PLAN = {
+    "Capoeira para todas as idades": {"alt": f"{DEMO_ALT}, em tons de laranja e azul."},
+    "Hora do conto na biblioteca": {"alt": f"{DEMO_ALT}, em tons de verde e amarelo."},
+    "Hidroginástica": {"alt": f"{DEMO_ALT}, em tons de azul."},
+    "Oficina de teatro para adolescentes": {"decorative": True},
+    "Cine CEU: sessão de curtas brasileiros": {"alt": f"{DEMO_ALT}, em tons de roxo."},
+    "Yoga e alongamento": {"alt": f"{DEMO_ALT}, em tons de rosa e lilás."},
+    "Horta comunitária e compostagem": {"decorative": True},
+    "Oficina de violão": {"alt": f"{DEMO_ALT}, em tons de marrom e dourado."},
+    "Zumba": {"alt": f"{DEMO_ALT}, em tons de vermelho e magenta."},
+    "Festival de talentos da comunidade": {"alt": f"{DEMO_ALT}, em tons de turquesa."},
+}
+DEMO_IMAGE_SIZE = (1200, 800)
+
+
+def build_demo_image(seed):
+    """Ilustração JPEG determinística: o mesmo `seed` sempre gera os mesmos bytes."""
+    digest = hashlib.sha256(seed.encode("utf-8")).digest()
+    width, height = DEMO_IMAGE_SIZE
+    top = tuple(60 + digest[i] % 150 for i in range(3))
+    bottom = tuple(60 + digest[3 + i] % 150 for i in range(3))
+    image = Image.new("RGB", DEMO_IMAGE_SIZE)
+    draw = ImageDraw.Draw(image)
+    for y in range(height):
+        ratio = y / (height - 1)
+        color = tuple(round(top[i] + (bottom[i] - top[i]) * ratio) for i in range(3))
+        draw.line([(0, y), (width, y)], fill=color)
+    for index in range(3):
+        x = digest[6 + index * 3] * width // 255
+        y = digest[7 + index * 3] * height // 255
+        radius = 90 + digest[8 + index * 3] % 140
+        light = tuple(min(255, value + 70) for value in bottom)
+        draw.ellipse([x - radius, y - radius, x + radius, y + radius], fill=light)
+    draw.rectangle([width // 6, height * 3 // 4, width * 5 // 6, height * 7 // 8], fill=top)
+    buffer = io.BytesIO()
+    image.save(buffer, "JPEG", quality=85)
+    return buffer.getvalue()
+
+
+def _attach_image(activity, plan):
+    """Anexa a imagem fictícia. Devolve False se a atividade já tinha imagem."""
+    if activity.image:
+        return False
+    upload = SimpleUploadedFile("demo.jpg", build_demo_image(activity.title))
+    processed, extension = process_image(upload)
+    activity.image.save(f"demo.{extension}", processed, save=False)
+    activity.image_alt = plan.get("alt", "")
+    activity.image_decorative = plan.get("decorative", False)
+    activity.save(update_fields=["image", "image_alt", "image_decorative", "updated_at"])
+    return True
+
+
+def _attach_demo_images(units):
+    """Anexa imagens às atividades de demonstração sem imagem. Devolve (anexadas, já tinham)."""
+    attached = existing = 0
+    for item in ACTIVITIES:
+        plan = IMAGE_PLAN.get(item["title"])
+        if plan is None:
+            continue
+        activity = Activity.objects.filter(title=item["title"], unit=units[item["unit"]]).first()
+        if activity is None:
+            continue
+        if _attach_image(activity, plan):
+            attached += 1
+        else:
+            existing += 1
+    return attached, existing
+
+
 def _time(text):
     return datetime.strptime(text, "%H:%M").time()
 
@@ -297,7 +374,7 @@ def _create_activity(item, units, categories, audiences, today, user):
 
 class Command(BaseCommand):
     help = (
-        "Carrega unidades, atividades e programações FICTÍCIAS para demonstração "
+        "Carrega unidades, atividades, programações e imagens FICTÍCIAS para demonstração "
         "(seguro para repetir; não cria usuários)."
     )
 
@@ -321,3 +398,11 @@ class Command(BaseCommand):
                 _create_activity(item, units, categories, audiences, today, user)
             made += 1
         self.stdout.write(f"Atividades: {made} criada(s), {skipped} já existiam.")
+        try:
+            attached, had_image = _attach_demo_images(units)
+        except Exception as error:
+            raise CommandError(
+                f"Não foi possível guardar as imagens de demonstração ({type(error).__name__}). "
+                "Confira as variáveis AWS_* e rode `seed_demo` de novo."
+            ) from None
+        self.stdout.write(f"Imagens: {attached} anexada(s), {had_image} já existiam.")
