@@ -24,6 +24,7 @@ class ConsultationQuerySerializer(serializers.Serializer):
     )
     unit = serializers.UUIDField(required=False, error_messages=ID_ERRORS)
     category = serializers.UUIDField(required=False, error_messages=ID_ERRORS)
+    audience = serializers.UUIDField(required=False, error_messages=ID_ERRORS)
     neighborhood = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -58,6 +59,7 @@ class ConsultationQuerySerializer(serializers.Serializer):
             q=data.get("q") or None,
             unit=data.get("unit"),
             category=data.get("category"),
+            audience=data.get("audience"),
             neighborhood=data.get("neighborhood") or None,
             date_from=day or data.get("date_from"),
             date_to=day or data.get("date_to"),
@@ -92,6 +94,12 @@ class AudienceSerializer(serializers.Serializer):
     name = serializers.CharField()
 
 
+def audiences_payload(activity):
+    """Públicos-alvo da atividade (id e nome), por nome; lista vazia se não houver nenhum."""
+    audiences = sorted(activity.target_audiences.all(), key=lambda audience: audience.name)
+    return [{"id": audience.id, "name": audience.name} for audience in audiences]
+
+
 def image_payload(activity):
     """Dados públicos da imagem da atividade, ou `None` quando ela não tem imagem."""
     if not activity.image:
@@ -115,6 +123,7 @@ class ActivityListItemSerializer(serializers.Serializer):
             "summary": activity.summary,
             "unit": UnitSummarySerializer(activity.unit).data,
             "category": CategorySummarySerializer(activity.category).data,
+            "target_audiences": audiences_payload(activity),
             "next_occurrence": OccurrenceSerializer(occurrence).data if occurrence else None,
             "image": image_payload(activity),
         }
@@ -146,11 +155,14 @@ class ActivityDetailSerializer(serializers.Serializer):
     target_audience_notes = serializers.CharField()
     unit = UnitDetailSerializer()
     category = CategorySummarySerializer()
-    target_audiences = AudienceSerializer(many=True, source="target_audiences.all")
+    target_audiences = serializers.SerializerMethodField()
     external_registration_url = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
     schedules = serializers.SerializerMethodField()
     next_occurrences = serializers.SerializerMethodField()
+
+    def get_target_audiences(self, activity):
+        return audiences_payload(activity)
 
     def get_image(self, activity):
         return image_payload(activity)
@@ -182,6 +194,16 @@ class UnitItemSerializer(serializers.Serializer):
 
     def get_description(self, unit):
         return unit.description or None
+
+
+class AudienceItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    slug = serializers.CharField()
+    description = serializers.SerializerMethodField()
+
+    def get_description(self, audience):
+        return audience.description or None
 
 
 class CategoryItemSerializer(serializers.Serializer):

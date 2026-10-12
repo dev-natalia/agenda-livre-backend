@@ -1,4 +1,7 @@
+from types import SimpleNamespace
+
 from django.contrib import admin
+from django.test import RequestFactory
 
 from apps.audiences.admin import TargetAudienceAdmin
 from apps.audiences.models import TargetAudience
@@ -28,9 +31,21 @@ def test_is_registered_with_admin():
 
 def test_admin_configuration():
     audience_admin = TargetAudienceAdmin(TargetAudience, admin.site)
-    assert audience_admin.list_display == ("name", "slug", "is_active")
-    assert audience_admin.list_filter == ("is_active",)
+    assert audience_admin.list_display == ("name", "slug", "is_active", "includes_everyone")
+    assert audience_admin.list_filter == ("is_active", "includes_everyone")
     assert audience_admin.search_fields == ("name",)
     assert audience_admin.readonly_fields == ("created_at", "updated_at")
     assert audience_admin.prepopulated_fields == {"slug": ("name",)}
     assert issubclass(TargetAudienceAdmin, ActiveToggleActionsMixin)
+
+
+def test_admin_form_offers_the_everyone_mark():
+    audience_admin = TargetAudienceAdmin(TargetAudience, admin.site)
+    request = RequestFactory().get("/")
+    request.user = SimpleNamespace(pk=1, is_active=True, is_staff=True, is_superuser=True)
+
+    form = audience_admin.get_form(request)
+
+    assert "includes_everyone" in form.base_fields
+    assert form.base_fields["includes_everyone"].initial is False
+    assert "includes_everyone" not in audience_admin.readonly_fields

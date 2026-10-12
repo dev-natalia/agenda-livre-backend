@@ -181,9 +181,10 @@ publicadas aparecem; nenhum dado de auditoria ou de conta é exposto. Contrato c
 | `GET /api/v1/activities/{id}/` | Detalhe (404 igual para inexistente, malformado ou não publicada) |
 | `GET /api/v1/units/` | Unidades ativas, por nome |
 | `GET /api/v1/categories/` | Categorias ativas, por nome |
+| `GET /api/v1/audiences/` | Públicos-alvo ativos, por nome (para montar o filtro `audience`) |
 
 Parâmetros da listagem (todos opcionais, combináveis): `q` (título, resumo e descrição, sem acento e sem
-caixa, até 100 caracteres), `unit` e `category` (UUID), `neighborhood`, `date` ou `date_from`/`date_to`
+caixa, até 100 caracteres), `unit`, `category` e `audience` (UUID), `neighborhood`, `date` ou `date_from`/`date_to`
 (`AAAA-MM-DD`, intervalo de até 366 dias), `page` e `page_size` (padrão 12, máximo 50). A ordem é pela
 próxima ocorrência (com filtro de data, a primeira dentro do período); atividades sem datas futuras vêm
 por último. Erros saem como `{"detail": "...", "errors": {"campo": ["..."]}}`. Página inválida responde
@@ -193,6 +194,15 @@ detalhes internos (ver `specs/007-quality-security-accessibility/contracts/error
 ```bash
 curl "http://localhost:8000/api/v1/activities/?q=danca&date_from=2026-11-01&date_to=2026-11-30"
 ```
+
+**Filtro por público-alvo.** `audience=<id>` (um único valor, obtido em `/api/v1/audiences/`) devolve as
+atividades daquele público **e** as de “Todas as idades”; escolher “Todas as idades” devolve só as dela.
+Cada item da listagem traz `target_audiences` (`[{id, name}]`, por nome). No Django Admin, o cadastro de
+públicos-alvo tem a caixa **Abrange todos os públicos**, que é o que identifica “Todas as idades” (o
+`seed_catalog` a marca). **Depois de `safe_migrate`, rode `python manage.py seed_catalog`**; sem isso, a
+opção “Todas as idades” de um catálogo já existente fica sem a marca e o filtro vira exato. A lista de
+atividades do Admin também filtra por público-alvo. Contrato em
+`specs/011-audience-filter/contracts/public-api-audience.md`.
 
 ## Imagens das atividades (Amazon S3)
 

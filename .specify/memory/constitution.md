@@ -27,8 +27,8 @@ RDS. Database access MUST stay disabled in the pytest configuration.
 ### IV. REST API with Public, Filterable Catalog
 The backend MUST expose a REST API through Django REST Framework consumed by the HTML/CSS/
 JavaScript frontend, which lives in a separate repository (CORS MUST be configured for it). The
-public API MUST support listing, keyword search and filtering of activities by unit, category
-and date. Only PUBLISHED activities MUST be
+public API MUST support listing, keyword search and filtering of activities by unit, category,
+target audience and date. Only PUBLISHED activities MUST be
 public; DRAFT, CANCELLED and FINISHED activities MUST be visible only to admins. Errors MUST be
 consistent JSON with correct HTTP status codes.
 Endpoint contracts MUST be documented in the feature spec before implementation.
@@ -71,4 +71,4 @@ materially expanded guidance, PATCH for wording clarifications. Every spec, plan
 MUST be checked for compliance with these principles; deviations MUST be justified in writing.
 Compliance is reviewed before each academic deliverable.
 
-**Version**: 1.1.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-11
+**Version**: 1.2.0 | **Ratified**: 2026-10-11 | **Last Amended**: 2026-10-12

@@ -36,6 +36,7 @@ Atividades `PUBLISHED`, com busca e filtros combináveis (todos opcionais, crit�
 | `unit` | UUID | Atividades da unidade. UUID malformado: `400`; inexistente: lista vazia. |
 | `neighborhood` | texto | Bairro da unidade, igualdade sem caixa e sem acento. Máx. 100 caracteres. |
 | `category` | UUID | Idem `unit`. |
+| `audience` | UUID | Atividades do público-alvo (um único valor), mais as de “Todas as idades”. Malformado: `400`; inexistente ou inativo: lista vazia; vazio é ignorado. Ver `specs/011-audience-filter/contracts/public-api-audience.md`. |
 | `date` | data | Atividades com ocorrência nesse dia. Não combina com `date_from`/`date_to` (`400`). |
 | `date_from` | data | Início da janela (inclusive). Sozinho: dessa data em diante. |
 | `date_to` | data | Fim da janela (inclusive). Sozinho: de hoje até essa data. |
@@ -58,12 +59,14 @@ Item de `results`:
   "summary": "Atividade aberta à comunidade.",
   "unit": { "id": "…", "name": "CEU Navegantes", "slug": "ceu-navegantes", "neighborhood": "Grajaú" },
   "category": { "id": "…", "name": "Cultura e Artes", "slug": "cultura-e-artes" },
+  "target_audiences": [{ "id": "…", "name": "Adultos" }],
   "next_occurrence": { "date": "2026-11-20", "start_time": "14:00", "end_time": "15:00" },
   "image": { "url": "https://…/activities/3f2a….webp", "alt": "Roda de dança", "decorative": false }
 }
 ```
 
 `next_occurrence` é `null` quando não há ocorrência futura (ou, com filtro de data, na janela).
+`target_audiences` traz os públicos da atividade por nome, ou `[]`.
 `image` é `null` quando a atividade não tem imagem; formato e garantias em
 `specs/010-activity-images/contracts/public-api-image.md`.
 
@@ -109,6 +112,12 @@ Apenas registros ativos, ordenados por nome, no envelope paginado.
 Unidade: `{ "id", "name", "slug", "neighborhood", "address", "description" }`.
 Categoria: `{ "id", "name", "slug", "description" }`.
 `description` vazio é `null`. Sem endpoints de detalhe nesta versão.
+
+## `GET /api/v1/audiences/`
+
+Públicos-alvo ativos, por nome, no envelope paginado: `{ "id", "name", "slug", "description" }`
+(`description` vazio é `null`). Sem endpoint de detalhe; sem `is_active` nem a marca “abrange todos”.
+Detalhes em `specs/011-audience-filter/contracts/public-api-audience.md`.
 
 ## CORS
 
