@@ -12,6 +12,7 @@ from apps.activities.admin import (
     ActivityAdmin,
     ActivityTargetAudienceFormSet,
     ActivityTargetAudienceInline,
+    AudienceListFilter,
     ScheduleInline,
 )
 from apps.activities.models import Activity, ActivityTargetAudience
@@ -41,7 +42,7 @@ def test_is_registered(model_admin):
 
 def test_list_configuration(model_admin):
     assert model_admin.list_display == ("title", "unit", "category", "status", "updated_at")
-    assert model_admin.list_filter == ("status", "unit", "category")
+    assert model_admin.list_filter == ("status", "unit", "category", AudienceListFilter)
     assert model_admin.search_fields == ("title", "summary")
     assert model_admin.list_select_related == ("unit", "category")
 

@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from apps.activities.models import PUBLIC_STATUSES, Activity
+from apps.audiences.models import TargetAudience
 from apps.schedules.services import activity_occurrences
 
 
@@ -13,6 +14,7 @@ class Criteria:
     q: str | None = None
     unit: object = None
     category: object = None
+    audience: object = None
     neighborhood: str | None = None
     date_from: date | None = None
     date_to: date | None = None
@@ -34,7 +36,7 @@ def published_activities(criteria=None):
     queryset = (
         Activity.objects.filter(status__in=PUBLIC_STATUSES)
         .select_related("unit", "category")
-        .prefetch_related("schedules__weekdays")
+        .prefetch_related("schedules__weekdays", "target_audiences")
     )
     if criteria is not None and criteria.unit is not None:
         queryset = queryset.filter(unit_id=criteria.unit)
@@ -54,9 +56,33 @@ def matches_search(activity, term):
     )
 
 
+def find_audience(audience_id):
+    """Público-alvo ativo com o identificador dado, ou `None` (inexistente ou inativo)."""
+    return TargetAudience.objects.filter(pk=audience_id, is_active=True).first()
+
+
+def matches_audience(activity, audience):
+    """Regra do filtro de público (ver `specs/011-audience-filter/data-model.md`).
+
+    O público escolhido entra sempre; se ele não for o "abrange todos", também entram as atividades
+    ligadas a qualquer público marcado como "abrange todos".
+    """
+    linked = list(activity.target_audiences.all())
+    if any(found.pk == audience.pk for found in linked):
+        return True
+    if audience.includes_everyone:
+        return False
+    return any(found.includes_everyone for found in linked)
+
+
 def apply_criteria(activities, criteria):
-    """Aplica busca e bairro (comparações sem acento); unidade e categoria vêm do banco."""
+    """Aplica público, busca e bairro (comparações sem acento); unidade e categoria vêm do banco."""
     result = list(activities)
+    if criteria.audience is not None:
+        audience = find_audience(criteria.audience)
+        if audience is None:
+            return []
+        result = [activity for activity in result if matches_audience(activity, audience)]
     if criteria.q:
         result = [activity for activity in result if matches_search(activity, criteria.q)]
     if criteria.neighborhood:

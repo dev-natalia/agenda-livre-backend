@@ -6,11 +6,13 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.audiences.models import TargetAudience
 from apps.categories.models import Category
 from apps.consultation.pagination import PublicPagination
 from apps.consultation.serializers import (
     ActivityDetailSerializer,
     ActivityListItemSerializer,
+    AudienceItemSerializer,
     CategoryItemSerializer,
     ConsultationQuerySerializer,
     UnitItemSerializer,
@@ -67,3 +69,9 @@ class CategoryListView(PublicAPIView):
     def get(self, request):
         categories = list(Category.objects.filter(is_active=True).order_by("name"))
         return self.paginate(request, categories, CategoryItemSerializer)
+
+
+class AudienceListView(PublicAPIView):
+    def get(self, request):
+        audiences = list(TargetAudience.objects.filter(is_active=True).order_by("name"))
+        return self.paginate(request, audiences, AudienceItemSerializer)

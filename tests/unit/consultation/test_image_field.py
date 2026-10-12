@@ -121,6 +121,7 @@ def test_existing_list_fields_are_unchanged():
         "summary",
         "unit",
         "category",
+        "target_audiences",
         "next_occurrence",
         "image",
     }

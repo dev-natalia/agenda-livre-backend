@@ -60,7 +60,7 @@ TARGET_AUDIENCES = [
     {"slug": "adolescentes", "name": "Adolescentes"},
     {"slug": "adultos", "name": "Adultos"},
     {"slug": "pessoas-idosas", "name": "Pessoas idosas"},
-    {"slug": "todas-as-idades", "name": "Todas as idades"},
+    {"slug": "todas-as-idades", "name": "Todas as idades", "includes_everyone": True},
 ]
 
 
@@ -73,6 +73,13 @@ def _load(manager, items):
     return created, len(items) - created
 
 
+def _mark_everyone(manager, items):
+    """Aplica a marca "abrange todos" ao que já existia sem ela. Nunca desmarca nenhum público."""
+    for item in items:
+        if item.get("includes_everyone"):
+            manager.filter(slug=item["slug"]).update(includes_everyone=True)
+
+
 class Command(BaseCommand):
     help = "Carrega a unidade e as categorias iniciais (seguro para repetir)."
 
@@ -83,4 +90,6 @@ class Command(BaseCommand):
             ("Públicos-alvo", TargetAudience.objects, TARGET_AUDIENCES),
         ):
             created, existing = _load(manager, items)
+            if manager is TargetAudience.objects:
+                _mark_everyone(manager, items)
             self.stdout.write(f"{label}: {created} criada(s), {existing} já existiam.")

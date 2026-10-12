@@ -12,6 +12,7 @@ from apps.activities.forms import ActivityAdminForm
 from apps.activities.images import delete_stored_file
 from apps.activities.models import PUBLIC_STATUSES, Activity, ActivityTargetAudience
 from apps.activities.services import StatusChangeError, change_status
+from apps.audiences.models import TargetAudience
 from apps.core.admin import ActiveOnlyForeignKeyMixin
 from apps.schedules.forms import ScheduleInlineForm
 from apps.schedules.models import Schedule
@@ -66,6 +67,26 @@ class ActivityTargetAudienceInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
+class AudienceListFilter(admin.SimpleListFilter):
+    """Filtra a lista pelos públicos-alvo vinculados (ativos e inativos que ainda têm vínculo)."""
+
+    title = "Público-alvo"
+    parameter_name = "audience"
+
+    def lookups(self, request, model_admin):
+        audiences = (
+            TargetAudience.objects.filter(Q(is_active=True) | Q(activity_links__isnull=False))
+            .distinct()
+            .order_by("name")
+        )
+        return [(str(audience.pk), audience.name) for audience in audiences]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(audience_links__target_audience_id=self.value())
+        return queryset
+
+
 class ScheduleInline(admin.StackedInline):
     model = Schedule
     form = ScheduleInlineForm
@@ -77,7 +98,7 @@ class ScheduleInline(admin.StackedInline):
 @admin.register(Activity)
 class ActivityAdmin(ActiveOnlyForeignKeyMixin, admin.ModelAdmin):
     list_display = ("title", "unit", "category", "status", "updated_at")
-    list_filter = ("status", "unit", "category")
+    list_filter = ("status", "unit", "category", AudienceListFilter)
     search_fields = ("title", "summary")
     list_select_related = ("unit", "category")
     form = ActivityAdminForm

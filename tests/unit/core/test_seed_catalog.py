@@ -81,3 +81,56 @@ def test_reports_target_audiences():
 
     assert "Públicos-alvo: 5 criada(s), 0 já existiam." in created
     assert "Públicos-alvo: 0 criada(s), 5 já existiam." in existing
+
+
+# --- marca "abrange todos" ------------------------------------------------
+
+
+def test_only_all_ages_is_declared_as_including_everyone():
+    marked = [a["slug"] for a in seed_catalog.TARGET_AUDIENCES if a.get("includes_everyone")]
+
+    assert marked == ["todas-as-idades"]
+    assert all(
+        "includes_everyone" not in a
+        for a in seed_catalog.TARGET_AUDIENCES
+        if a["slug"] != "todas-as-idades"
+    )
+
+
+def test_all_ages_is_created_with_the_mark():
+    _run(True)
+
+    calls = _run.audience_manager.get_or_create.call_args_list
+    by_slug = {c.kwargs["slug"]: c.kwargs["defaults"] for c in calls}
+    assert by_slug["todas-as-idades"]["includes_everyone"] is True
+    assert "includes_everyone" not in by_slug["adultos"]
+
+
+def test_existing_all_ages_without_the_mark_gets_it():
+    _run(False)
+
+    manager = _run.audience_manager
+    manager.filter.assert_called_once_with(slug="todas-as-idades")
+    manager.filter.return_value.update.assert_called_once_with(includes_everyone=True)
+
+
+def test_the_mark_is_never_removed_from_any_audience():
+    _run(False)
+    _run(True)
+
+    for call in _run.audience_manager.filter.return_value.update.call_args_list:
+        assert call.kwargs == {"includes_everyone": True}
+
+
+def test_marking_does_not_touch_units_or_categories():
+    unit_manager, category_manager, _ = _run(False)
+
+    assert not unit_manager.filter.called and not category_manager.filter.called
+
+
+def test_running_twice_reports_the_same_and_creates_nothing():
+    _, _, first = _run(False)
+    _, _, second = _run(False)
+
+    assert first == second
+    assert "Públicos-alvo: 0 criada(s), 5 já existiam." in second
