@@ -119,4 +119,16 @@ def test_invalid_log_variables_stop_startup_without_showing_value(load_settings,
 def test_secrets_are_passed_to_the_log_formatter(load_settings, valid_env):
     formatter = load_settings().LOGGING["formatters"]["redacting"]
 
-    assert formatter["secrets"] == (valid_env["DJANGO_SECRET_KEY"], valid_env["DB_PASSWORD"])
+    assert formatter["secrets"] == (
+        valid_env["DJANGO_SECRET_KEY"],
+        valid_env["DB_PASSWORD"],
+        valid_env["AWS_SECRET_ACCESS_KEY"],
+    )
+
+
+def test_default_storage_is_s3_with_environment_values(load_settings, valid_env):
+    storages = load_settings().STORAGES
+
+    assert storages["default"]["BACKEND"] == "storages.backends.s3.S3Storage"
+    assert storages["default"]["OPTIONS"]["bucket_name"] == valid_env["AWS_STORAGE_BUCKET_NAME"]
+    assert storages["default"]["OPTIONS"]["region_name"] == valid_env["AWS_S3_REGION_NAME"]

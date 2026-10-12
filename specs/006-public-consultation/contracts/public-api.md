@@ -6,14 +6,16 @@ método responde `405`. JSON em UTF-8. Datas `YYYY-MM-DD`, horários `HH:MM`, di
 
 ## Paginação (listas)
 
-Parâmetros: `page` (inteiro >= 1, padrão 1) e `page_size` (padrão 12, máximo 50; inválido ou < 1 usa o
-padrão, acima do máximo é limitado a 50). Envelope:
+Parâmetros: `page` (inteiro >= 1, padrão 1; omitido usa 1) e `page_size` (padrão 12, máximo 50; inválido ou
+< 1 usa o padrão, acima do máximo é limitado a 50). Envelope:
 
 ```json
 { "count": 27, "next": "http://host/api/v1/activities/?page=2", "previous": null, "results": [] }
 ```
 
-Página fora do intervalo: `404` com o erro padrão. Lista vazia: `200` com `count: 0`.
+`page` inválido, menor que 1 ou fora do intervalo: `400` com `errors.page` ("Informe uma página válida."),
+conforme `specs/007-quality-security-accessibility/contracts/error-format.md`. Lista vazia: `200` com
+`count: 0`.
 
 ## Erros
 
@@ -56,11 +58,14 @@ Item de `results`:
   "summary": "Atividade aberta à comunidade.",
   "unit": { "id": "…", "name": "CEU Navegantes", "slug": "ceu-navegantes", "neighborhood": "Grajaú" },
   "category": { "id": "…", "name": "Cultura e Artes", "slug": "cultura-e-artes" },
-  "next_occurrence": { "date": "2026-11-20", "start_time": "14:00", "end_time": "15:00" }
+  "next_occurrence": { "date": "2026-11-20", "start_time": "14:00", "end_time": "15:00" },
+  "image": { "url": "https://…/activities/3f2a….webp", "alt": "Roda de dança", "decorative": false }
 }
 ```
 
 `next_occurrence` é `null` quando não há ocorrência futura (ou, com filtro de data, na janela).
+`image` é `null` quando a atividade não tem imagem; formato e garantias em
+`specs/010-activity-images/contracts/public-api-image.md`.
 
 ## `GET /api/v1/activities/{id}/`
 
@@ -75,6 +80,7 @@ Item de `results`:
   "category": { "id": "…", "name": "Cultura e Artes", "slug": "cultura-e-artes" },
   "target_audiences": [{ "id": "…", "name": "Adultos" }],
   "external_registration_url": null,
+  "image": { "url": "https://…/activities/3f2a….webp", "alt": "Roda de dança", "decorative": false },
   "schedules": [
     {
       "id": "…", "schedule_type": "RECURRING",
@@ -89,6 +95,8 @@ Item de `results`:
 
 - `external_registration_url`: o valor só quando for `http://` ou `https://`; senão `null`. O link leva
   para fora do Agenda Livre, que não coleta nem processa inscrições; o frontend deve indicar a saída.
+- `image`: objeto com `url` absoluta, `alt` e `decorative`, ou `null` sem imagem (ver
+  `specs/010-activity-images/contracts/public-api-image.md`).
 - `schedule_type`: `ONE_TIME` ou `RECURRING`. Em `ONE_TIME`, `weekdays` e `weekday_names` são listas
   vazias e `start_date` = `end_date`.
 - `schedules` ordenadas por `start_date`; `next_occurrences` traz até 5, em ordem cronológica, vazia sem

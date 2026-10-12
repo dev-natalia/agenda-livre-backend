@@ -48,6 +48,7 @@ def test_list_configuration(model_admin):
 
 def test_form_configuration(model_admin):
     assert model_admin.readonly_fields == (
+        "image_preview",
         "status",
         "slug",
         "created_by",

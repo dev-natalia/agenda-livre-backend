@@ -10,6 +10,8 @@ polo UniCEU Navegantes. É uma API REST em Django. O frontend fica em outro repo
 - **Python 3.14**
 - Uma instância **PostgreSQL no AWS RDS**, com acesso de rede liberado para a sua máquina, e o usuário e a
   senha do banco.
+- Um **bucket do Amazon S3** para as imagens das atividades e um usuário IAM com acesso a ele (ver
+  [Imagens das atividades](#imagens-das-atividades-amazon-s3)).
 
 ## Instalação
 
@@ -45,6 +47,10 @@ O arquivo `.env` não é versionado. Nunca registre senhas ou chaves no reposit�
 | `DB_NAME` | Sim | | Nome do banco |
 | `DB_USER` | Sim | | Usuário do banco |
 | `DB_PASSWORD` | Sim | | Senha do usuário |
+| `AWS_ACCESS_KEY_ID` | Sim | | Chave de acesso do usuário IAM da aplicação (imagens no S3) |
+| `AWS_SECRET_ACCESS_KEY` | Sim | | Chave secreta do usuário IAM (nunca versionar nem registrar em log) |
+| `AWS_STORAGE_BUCKET_NAME` | Sim | | Nome do bucket S3 das imagens (`agenda-livre-imagens`) |
+| `AWS_S3_REGION_NAME` | Sim | | Região do bucket (`sa-east-1`) |
 | `DB_SSLMODE` | Não | `require` | Modo TLS do PostgreSQL |
 | `DB_SSLROOTCERT` | Não | | Caminho do certificado raiz (com `verify-ca` ou `verify-full`) |
 | `CORS_ALLOWED_ORIGINS` | Não | vazio | Origens do frontend, separadas por vírgula |
@@ -136,7 +142,7 @@ Para popular o ambiente de desenvolvimento com unidades, atividades e programaç
 python manage.py seed_demo
 ```
 
-O comando cria os CEUs Cidade Dutra, Vila Rubi e Vila do Sol e 15 atividades (publicadas, rascunhos, cancelada e encerradas) com datas relativas ao dia da execução. Usa o primeiro administrador ativo como autor, **não cria usuários** e é seguro para repetir (ignora o que já existe pelo título e unidade). O telefone de cada unidade fica no campo descrição, pois o modelo não tem campo próprio.
+O comando cria os CEUs Cidade Dutra, Vila Rubi e Vila do Sol e 15 atividades (publicadas, rascunhos, cancelada e encerradas) com datas relativas ao dia da execução. Também anexa **imagens fictícias** (ilustrações geométricas geradas na hora, sem pessoas nem marcas) a 10 delas, com texto alternativo ou marcadas como decorativas, e deixa as demais sem imagem para mostrar o visual alternativo; as imagens vão para o bucket S3 (exige as variáveis `AWS_*`) e reexecutar o comando não as duplica. Usa o primeiro administrador ativo como autor, **não cria usuários** e é seguro para repetir (ignora o que já existe pelo título e unidade). O telefone de cada unidade fica no campo descrição, pois o modelo não tem campo próprio.
 
 ## Carga inicial de públicos-alvo e atividades
 
@@ -187,6 +193,69 @@ detalhes internos (ver `specs/007-quality-security-accessibility/contracts/error
 ```bash
 curl "http://localhost:8000/api/v1/activities/?q=danca&date_from=2026-11-01&date_to=2026-11-30"
 ```
+
+## Imagens das atividades (Amazon S3)
+
+Cada atividade pode ter **uma imagem**, enviada pelo Django Admin. O arquivo fica no Amazon S3 (bucket
+`agenda-livre-imagens`, região `sa-east-1`); o PostgreSQL guarda só o nome do objeto. As dependências
+`Pillow`, `django-storages[s3]` e `boto3` estão fixadas em `requirements.txt`.
+
+- **Validação:** JPEG, PNG ou WebP (verificados pelo conteúdo), até 5 MB, de 400×300 a 6000×6000 px.
+- **Tratamento:** o lado maior é reduzido a 1600 px, a imagem é regravada **sem metadados** (EXIF, GPS) e
+  guardada com um nome aleatório (`activities/<uuid>.<ext>`); o nome enviado nunca é usado.
+- **Acessibilidade:** com imagem, informe o **texto alternativo** (até 200 caracteres) **ou** marque
+  **imagem decorativa**, nunca os dois.
+- **API:** `GET /api/v1/activities/` e `/{id}/` trazem `image` (`{url, alt, decorative}` ou `null`);
+  veja `specs/010-activity-images/contracts/public-api-image.md`.
+- **Limpeza:** trocar ou remover a imagem, ou excluir a atividade, apaga o arquivo antigo do bucket.
+
+### Configuração da AWS
+
+Defina no `.env` as variáveis `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_STORAGE_BUCKET_NAME` e
+`AWS_S3_REGION_NAME` (tabela acima). As chaves **nunca** vão para o repositório nem para os logs.
+
+**Leitura pública apenas dos objetos, sem listagem** (Permissions → Block public access: desmarque as duas
+opções sobre *políticas*; depois Bucket policy):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PublicReadGetObject",
+      "Effect": "Allow",
+      "Principal": "*",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::agenda-livre-imagens/*"
+    }
+  ]
+}
+```
+
+**Usuário IAM da aplicação** (`agenda-livre-app`, sem acesso ao console), com a política de menor privilégio:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ObjetosDoBucket",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::agenda-livre-imagens/*"
+    },
+    {
+      "Sid": "ChecarExistencia",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::agenda-livre-imagens"
+    }
+  ]
+}
+```
+
+O `<img>` do frontend não precisa de CORS no bucket; só seria necessário se ele buscasse a imagem por
+`fetch` ou `canvas`. Os testes automatizados **não** acessam o S3 (usam armazenamento em memória).
 
 ## Acessibilidade
 

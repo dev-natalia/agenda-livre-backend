@@ -48,6 +48,29 @@ def test_require_env_error_never_contains_values(clean_env, valid_env):
     message = str(exc.value)
     assert valid_env["DB_PASSWORD"] not in message
     assert valid_env["DJANGO_SECRET_KEY"] not in message
+    assert valid_env["AWS_SECRET_ACCESS_KEY"] not in message
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_STORAGE_BUCKET_NAME", "AWS_S3_REGION_NAME"],
+)
+def test_storage_variables_are_required(name):
+    assert name in env.REQUIRED_VARS
+
+
+def test_require_env_lists_missing_storage_variables(clean_env, valid_env):
+    valid_env.pop("AWS_ACCESS_KEY_ID")
+    valid_env["AWS_STORAGE_BUCKET_NAME"] = "   "
+    _set_all(clean_env, valid_env)
+
+    with pytest.raises(ImproperlyConfigured) as exc:
+        env.require_env(env.REQUIRED_VARS)
+
+    assert str(exc.value) == (
+        "Configuração incompleta. Defina as variáveis de ambiente: "
+        "AWS_ACCESS_KEY_ID, AWS_STORAGE_BUCKET_NAME"
+    )
 
 
 @pytest.mark.parametrize("value", ["abc", "", "5432.5", "0", "65536", "-1"])
