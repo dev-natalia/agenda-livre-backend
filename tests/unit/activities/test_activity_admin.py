@@ -6,6 +6,8 @@ import pytest
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.test import RequestFactory
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
+from unfold.admin import TabularInline as UnfoldTabularInline
 
 from apps.activities import admin as activity_admin_module
 from apps.activities.admin import (
@@ -41,7 +43,7 @@ def test_is_registered(model_admin):
 
 
 def test_list_configuration(model_admin):
-    assert model_admin.list_display == ("title", "unit", "category", "status", "updated_at")
+    assert model_admin.list_display == ("title", "unit", "category", "status_badge", "updated_at")
     assert model_admin.list_filter == ("status", "unit", "category", AudienceListFilter)
     assert model_admin.search_fields == ("title", "summary")
     assert model_admin.list_select_related == ("unit", "category")
@@ -75,26 +77,24 @@ def test_actions_order_and_labels(model_admin):
 
 def test_get_actions_removes_bulk_delete(model_admin):
     request = _request()
-    with patch.object(
-        admin.ModelAdmin, "get_actions", return_value={"delete_selected": 1, "x": 2}
-    ):
+    with patch.object(UnfoldModelAdmin, "get_actions", return_value={"delete_selected": 1, "x": 2}):
         assert model_admin.get_actions(request) == {"x": 2}
 
 
 def test_get_form_stores_editing_object(model_admin):
     request, obj = _request(), object()
-    with patch.object(admin.ModelAdmin, "get_form", return_value="form"):
+    with patch.object(UnfoldModelAdmin, "get_form", return_value="form"):
         assert model_admin.get_form(request, obj) == "form"
     assert request._editing_obj is obj
 
-    with patch.object(admin.ModelAdmin, "get_form", return_value="form"):
+    with patch.object(UnfoldModelAdmin, "get_form", return_value="form"):
         model_admin.get_form(request)
     assert request._editing_obj is None
 
 
 def test_save_model_on_create_sets_both_authors(model_admin):
     request, obj = _request(), SimpleNamespace()
-    with patch.object(admin.ModelAdmin, "save_model") as parent:
+    with patch.object(UnfoldModelAdmin, "save_model") as parent:
         model_admin.save_model(request, obj, None, change=False)
     assert obj.created_by is request.user
     assert obj.updated_by is request.user
@@ -105,7 +105,7 @@ def test_save_model_on_edit_keeps_creator(model_admin):
     request = _request()
     creator = object()
     obj = SimpleNamespace(created_by=creator)
-    with patch.object(admin.ModelAdmin, "save_model"):
+    with patch.object(UnfoldModelAdmin, "save_model"):
         model_admin.save_model(request, obj, None, change=True)
     assert obj.created_by is creator
     assert obj.updated_by is request.user
@@ -122,18 +122,18 @@ def test_save_model_on_edit_keeps_creator(model_admin):
 )
 def test_only_drafts_can_be_deleted(model_admin, status, expected):
     obj = SimpleNamespace(status=status)
-    with patch.object(admin.ModelAdmin, "has_delete_permission", return_value=True):
+    with patch.object(UnfoldModelAdmin, "has_delete_permission", return_value=True):
         assert model_admin.has_delete_permission(_request(), obj) is expected
 
 
 def test_delete_permission_without_object_follows_parent(model_admin):
-    with patch.object(admin.ModelAdmin, "has_delete_permission", return_value=True):
+    with patch.object(UnfoldModelAdmin, "has_delete_permission", return_value=True):
         assert model_admin.has_delete_permission(_request()) is True
 
 
 def test_delete_permission_denied_by_parent_stays_denied(model_admin):
     obj = SimpleNamespace(status=Status.DRAFT)
-    with patch.object(admin.ModelAdmin, "has_delete_permission", return_value=False):
+    with patch.object(UnfoldModelAdmin, "has_delete_permission", return_value=False):
         assert model_admin.has_delete_permission(_request(), obj) is False
 
 
@@ -262,7 +262,7 @@ def test_inline_remembers_linked_ids_of_existing_activity():
     inline = ActivityTargetAudienceInline(Activity, admin.site)
     obj = MagicMock()
     obj.audience_links.values_list.return_value = ["a", "b"]
-    with patch.object(admin.TabularInline, "get_formset", return_value="formset"):
+    with patch.object(UnfoldTabularInline, "get_formset", return_value="formset"):
         assert inline.get_formset(_request(), obj) == "formset"
 
     assert inline._linked_ids == ["a", "b"]
@@ -270,7 +270,7 @@ def test_inline_remembers_linked_ids_of_existing_activity():
 
 def test_inline_has_no_linked_ids_for_new_activity():
     inline = ActivityTargetAudienceInline(Activity, admin.site)
-    with patch.object(admin.TabularInline, "get_formset", return_value="formset"):
+    with patch.object(UnfoldTabularInline, "get_formset", return_value="formset"):
         inline.get_formset(_request(), None)
 
     assert inline._linked_ids == []
@@ -282,7 +282,7 @@ def test_inline_offers_active_audiences_and_the_linked_ones():
     model = MagicMock()
     db_field = SimpleNamespace(name="target_audience", remote_field=SimpleNamespace(model=model))
     with patch.object(
-        admin.TabularInline, "formfield_for_foreignkey", side_effect=lambda f, r, **kw: kw
+        UnfoldTabularInline, "formfield_for_foreignkey", side_effect=lambda f, r, **kw: kw
     ):
         result = inline.formfield_for_foreignkey(db_field, _request())
 
@@ -294,7 +294,7 @@ def test_inline_leaves_other_foreign_keys_alone():
     inline = ActivityTargetAudienceInline(Activity, admin.site)
     db_field = SimpleNamespace(name="activity")
     with patch.object(
-        admin.TabularInline, "formfield_for_foreignkey", side_effect=lambda f, r, **kw: kw
+        UnfoldTabularInline, "formfield_for_foreignkey", side_effect=lambda f, r, **kw: kw
     ):
         assert inline.formfield_for_foreignkey(db_field, _request()) == {}
 
@@ -304,7 +304,7 @@ def test_inline_uses_given_queryset():
     given = MagicMock()
     db_field = SimpleNamespace(name="target_audience")
     with patch.object(
-        admin.TabularInline, "formfield_for_foreignkey", side_effect=lambda f, r, **kw: kw
+        UnfoldTabularInline, "formfield_for_foreignkey", side_effect=lambda f, r, **kw: kw
     ):
         result = inline.formfield_for_foreignkey(db_field, _request(), queryset=given)
 
@@ -315,8 +315,13 @@ def test_schedule_inline_configuration():
     inline = ScheduleInline(Activity, admin.site)
     assert inline.model is Schedule
     assert inline.form is ScheduleInlineForm
-    assert inline.extra == 1
     assert inline.verbose_name_plural == "Programações"
+
+
+def test_schedule_inline_offers_a_blank_block_only_when_creating():
+    inline = ScheduleInline(Activity, admin.site)
+    assert inline.get_extra(_request()) == 1
+    assert inline.get_extra(_request(), obj=Activity()) == 0
 
 
 def test_occurrences_display_without_object(model_admin):
@@ -366,7 +371,7 @@ def _saved(adding):
 def test_save_formset_delegates_other_models(model_admin):
     formset = MagicMock()
     formset.model = ActivityTargetAudience
-    with patch.object(admin.ModelAdmin, "save_formset") as parent:
+    with patch.object(UnfoldModelAdmin, "save_formset") as parent:
         model_admin.save_formset(_request(), None, formset, True)
     parent.assert_called_once()
 
@@ -392,3 +397,8 @@ def test_save_formset_sets_audit_and_syncs_weekdays(model_admin):
     removed.delete.assert_called_once()
     assert [call.args for call in sync.call_args_list] == [(new, [2, 4]), (old, [])]
     formset.save_m2m.assert_called_once()
+
+
+def test_status_badge_shows_the_status_value_and_label(model_admin):
+    activity = Activity(status=Status.PUBLISHED)
+    assert model_admin.status_badge(activity) == (Status.PUBLISHED, "Publicada")

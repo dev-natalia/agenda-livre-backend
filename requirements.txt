@@ -6,3 +6,4 @@ django-environ==0.14.0
 Pillow==12.3.0
 django-storages[s3]==1.14.6
 boto3==1.43.111
+django-unfold==0.110.0

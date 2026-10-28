@@ -7,6 +7,7 @@ from django.apps import apps as django_apps
 from django.contrib import admin
 from django.db.models.signals import post_delete
 from django.test import RequestFactory
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
 
 from apps.activities import signals
 from apps.activities.admin import ActivityAdmin
@@ -127,7 +128,7 @@ def test_signal_is_registered_for_activity():
 
 def _save(model_admin, form, change=True):
     with (
-        patch.object(admin.ModelAdmin, "save_model"),
+        patch.object(UnfoldModelAdmin, "save_model"),
         patch("apps.activities.admin.transaction.on_commit", side_effect=_run_now),
         patch("apps.activities.admin.delete_stored_file") as remove,
     ):
@@ -174,7 +175,7 @@ def test_removal_after_the_admin_save_waits_for_the_commit(model_admin):
     callbacks = []
 
     with (
-        patch.object(admin.ModelAdmin, "save_model"),
+        patch.object(UnfoldModelAdmin, "save_model"),
         patch("apps.activities.admin.transaction.on_commit", side_effect=callbacks.append),
         patch("apps.activities.admin.delete_stored_file") as remove,
     ):

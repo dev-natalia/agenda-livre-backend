@@ -7,6 +7,8 @@ from django.db.models import Q
 from django.forms.models import BaseInlineFormSet
 from django.http import Http404, HttpResponseRedirect
 from django.utils.html import format_html, format_html_join
+from unfold.admin import ModelAdmin, StackedInline, TabularInline
+from unfold.decorators import display
 
 from apps.activities.forms import ActivityAdminForm
 from apps.activities.images import delete_stored_file
@@ -42,7 +44,7 @@ class ActivityTargetAudienceFormSet(BaseInlineFormSet):
             raise ValidationError("Uma atividade publicada precisa de ao menos um público-alvo.")
 
 
-class ActivityTargetAudienceInline(admin.TabularInline):
+class ActivityTargetAudienceInline(TabularInline):
     model = ActivityTargetAudience
     formset = ActivityTargetAudienceFormSet
     extra = 1
@@ -87,17 +89,20 @@ class AudienceListFilter(admin.SimpleListFilter):
         return queryset
 
 
-class ScheduleInline(admin.StackedInline):
+class ScheduleInline(StackedInline):
     model = Schedule
     form = ScheduleInlineForm
-    extra = 1
     verbose_name = "Programação"
     verbose_name_plural = "Programações"
 
+    def get_extra(self, request, obj=None, **kwargs):
+        """Bloco em branco só na criação; ao editar, use o botão de adicionar."""
+        return 1 if obj is None else 0
+
 
 @admin.register(Activity)
-class ActivityAdmin(ActiveOnlyForeignKeyMixin, admin.ModelAdmin):
-    list_display = ("title", "unit", "category", "status", "updated_at")
+class ActivityAdmin(ActiveOnlyForeignKeyMixin, ModelAdmin):
+    list_display = ("title", "unit", "category", "status_badge", "updated_at")
     list_filter = ("status", "unit", "category", AudienceListFilter)
     search_fields = ("title", "summary")
     list_select_related = ("unit", "category")
@@ -134,6 +139,19 @@ class ActivityAdmin(ActiveOnlyForeignKeyMixin, admin.ModelAdmin):
     )
     inlines = [ActivityTargetAudienceInline, ScheduleInline]
     actions = ["publish_selected", "cancel_selected", "finish_selected"]
+
+    @display(
+        description="Status",
+        ordering="status",
+        label={
+            Activity.Status.DRAFT: "warning",
+            Activity.Status.PUBLISHED: "success",
+            Activity.Status.CANCELLED: "danger",
+            Activity.Status.FINISHED: "info",
+        },
+    )
+    def status_badge(self, obj):
+        return obj.status, obj.get_status_display()
 
     @admin.display(description="Imagem atual")
     def image_preview(self, obj):
