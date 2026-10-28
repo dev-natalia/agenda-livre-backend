@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.contrib import admin
 from django.test import RequestFactory
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
 
 from apps.activities import admin as activity_admin_module
 from apps.activities.admin import ActivityAdmin
@@ -31,7 +32,7 @@ def _request(user):
 def test_save_model_creator_stays_and_updater_follows_the_editor(model_admin, model):
     instance = model_admin(model, admin.site)
     obj = SimpleNamespace()
-    with patch.object(admin.ModelAdmin, "save_model"):
+    with patch.object(UnfoldModelAdmin, "save_model"):
         instance.save_model(_request(USER_A), obj, None, change=False)
         assert (obj.created_by, obj.updated_by) == (USER_A, USER_A)
         instance.save_model(_request(USER_B), obj, None, change=True)

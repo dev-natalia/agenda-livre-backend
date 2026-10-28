@@ -7,6 +7,7 @@ from django.core.exceptions import ImproperlyConfigured
 from config import env
 from config.logging_config import build_logging, log_startup_failure, resolve_log_dir
 from config.storage import build_storages
+from config.unfold_settings import UNFOLD  # noqa: F401
 
 try:
     _required = env.require_env(env.REQUIRED_VARS)
@@ -32,6 +33,7 @@ SESSION_COOKIE_HTTPONLY = True
 SECURE_REFERRER_POLICY = "same-origin"
 
 INSTALLED_APPS = [
+    "unfold",
     "django.contrib.admin",
     "django.contrib.contenttypes",
     "django.contrib.auth",

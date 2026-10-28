@@ -8,6 +8,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import Http404, HttpResponseRedirect
 from django.test import RequestFactory
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
 
 from apps.activities.admin import ActivityAdmin
 from apps.activities.forms import ActivityAdminForm
@@ -74,7 +75,7 @@ def test_preview_without_image(model_admin, obj):
 def test_storage_failure_redirects_back_with_a_generic_message(model_admin, caplog):
     request = _post()
 
-    with patch.object(admin.ModelAdmin, "changeform_view", side_effect=_client_error()):
+    with patch.object(UnfoldModelAdmin, "changeform_view", side_effect=_client_error()):
         response = model_admin.changeform_view(request)
 
     assert isinstance(response, HttpResponseRedirect)
@@ -85,14 +86,14 @@ def test_storage_failure_redirects_back_with_a_generic_message(model_admin, capl
 
 
 def test_os_error_is_treated_the_same_way(model_admin):
-    with patch.object(admin.ModelAdmin, "changeform_view", side_effect=OSError("disco")):
+    with patch.object(UnfoldModelAdmin, "changeform_view", side_effect=OSError("disco")):
         response = model_admin.changeform_view(_post())
 
     assert isinstance(response, HttpResponseRedirect)
 
 
 def test_failure_without_an_uploaded_image_propagates(model_admin):
-    with patch.object(admin.ModelAdmin, "changeform_view", side_effect=_client_error()):
+    with patch.object(UnfoldModelAdmin, "changeform_view", side_effect=_client_error()):
         with pytest.raises(ClientError):
             model_admin.changeform_view(_post(with_image=False))
 
@@ -100,20 +101,20 @@ def test_failure_without_an_uploaded_image_propagates(model_admin):
 def test_failure_on_a_get_request_propagates(model_admin):
     request = RequestFactory().get("/admin/activities/activity/add/")
 
-    with patch.object(admin.ModelAdmin, "changeform_view", side_effect=_client_error()):
+    with patch.object(UnfoldModelAdmin, "changeform_view", side_effect=_client_error()):
         with pytest.raises(ClientError):
             model_admin.changeform_view(request)
 
 
 @pytest.mark.parametrize("error", [ValidationError("x"), PermissionDenied(), Http404()])
 def test_expected_errors_are_not_swallowed(model_admin, error):
-    with patch.object(admin.ModelAdmin, "changeform_view", side_effect=error):
+    with patch.object(UnfoldModelAdmin, "changeform_view", side_effect=error):
         with pytest.raises(type(error)):
             model_admin.changeform_view(_post())
 
 
 def test_successful_save_returns_the_parent_response(model_admin):
-    with patch.object(admin.ModelAdmin, "changeform_view", return_value="ok") as parent:
+    with patch.object(UnfoldModelAdmin, "changeform_view", return_value="ok") as parent:
         assert model_admin.changeform_view(_post(), "1", "/u/", {"a": 1}) == "ok"
 
     parent.assert_called_once()
@@ -125,7 +126,7 @@ def test_replacing_or_clearing_the_image_updates_the_audit_fields(model_admin, c
     obj = SimpleNamespace(created_by=object())
     form = SimpleNamespace(changed_data=changed, initial={})
 
-    with patch.object(admin.ModelAdmin, "save_model") as parent:
+    with patch.object(UnfoldModelAdmin, "save_model") as parent:
         model_admin.save_model(request, obj, form, change=True)
 
     assert obj.updated_by is request.user

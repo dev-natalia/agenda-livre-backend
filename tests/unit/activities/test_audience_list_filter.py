@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 from django.contrib import admin
 from django.db.models import Q
 from django.test import RequestFactory
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
 
 from apps.activities import admin as activity_admin
 from apps.activities.admin import ActivityAdmin, AudienceListFilter
@@ -90,7 +91,7 @@ def test_search_actions_and_delete_rules_are_unchanged():
     assert model_admin.search_fields == ("title", "summary")
     assert model_admin.actions == ["publish_selected", "cancel_selected", "finish_selected"]
     request = _request()
-    with patch.object(admin.ModelAdmin, "has_delete_permission", return_value=True):
+    with patch.object(UnfoldModelAdmin, "has_delete_permission", return_value=True):
         draft = SimpleNamespace(status=Activity.Status.DRAFT)
         published = SimpleNamespace(status=Activity.Status.PUBLISHED)
         assert model_admin.has_delete_permission(request, draft) is True

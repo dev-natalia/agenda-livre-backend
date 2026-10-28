@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from django.contrib import admin
 from django.test import RequestFactory
+from unfold.admin import ModelAdmin as UnfoldModelAdmin
 
 from apps.schedules import admin as schedule_admin_module
 from apps.schedules.admin import ScheduleAdmin
@@ -59,7 +60,7 @@ def test_form_configuration(model_admin):
 
 def test_get_queryset_prefetches_weekdays(model_admin):
     queryset = MagicMock()
-    with patch.object(admin.ModelAdmin, "get_queryset", return_value=queryset):
+    with patch.object(UnfoldModelAdmin, "get_queryset", return_value=queryset):
         result = model_admin.get_queryset(_request())
     queryset.prefetch_related.assert_called_once_with("weekdays")
     assert result is queryset.prefetch_related.return_value
@@ -72,7 +73,7 @@ def test_weekday_names_column(model_admin):
 
 def test_save_model_on_create_sets_both_users(model_admin):
     request, obj = _request(), SimpleNamespace()
-    with patch.object(admin.ModelAdmin, "save_model") as parent:
+    with patch.object(UnfoldModelAdmin, "save_model") as parent:
         model_admin.save_model(request, obj, None, change=False)
     assert obj.created_by is request.user
     assert obj.updated_by is request.user
@@ -81,7 +82,7 @@ def test_save_model_on_create_sets_both_users(model_admin):
 
 def test_save_model_on_edit_keeps_creator(model_admin):
     request, obj = _request(), SimpleNamespace(created_by="original")
-    with patch.object(admin.ModelAdmin, "save_model"):
+    with patch.object(UnfoldModelAdmin, "save_model"):
         model_admin.save_model(request, obj, None, change=True)
     assert obj.created_by == "original"
     assert obj.updated_by is request.user
@@ -90,7 +91,7 @@ def test_save_model_on_edit_keeps_creator(model_admin):
 def test_save_related_syncs_chosen_weekdays(model_admin):
     schedule = object()
     form = SimpleNamespace(instance=schedule, cleaned_data={"weekdays": [2, 4]})
-    with patch.object(admin.ModelAdmin, "save_related"), patch.object(
+    with patch.object(UnfoldModelAdmin, "save_related"), patch.object(
         schedule_admin_module, "sync_weekdays"
     ) as sync:
         model_admin.save_related(_request(), form, [], change=True)

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin
 
 from apps.schedules.forms import ScheduleAdminForm
 from apps.schedules.models import Schedule
@@ -6,7 +7,7 @@ from apps.schedules.services import format_weekdays, sync_weekdays
 
 
 @admin.register(Schedule)
-class ScheduleAdmin(admin.ModelAdmin):
+class ScheduleAdmin(ModelAdmin):
     form = ScheduleAdminForm
     list_display = (
         "activity",
