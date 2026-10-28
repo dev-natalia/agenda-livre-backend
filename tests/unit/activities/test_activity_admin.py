@@ -315,8 +315,13 @@ def test_schedule_inline_configuration():
     inline = ScheduleInline(Activity, admin.site)
     assert inline.model is Schedule
     assert inline.form is ScheduleInlineForm
-    assert inline.extra == 1
     assert inline.verbose_name_plural == "Programações"
+
+
+def test_schedule_inline_offers_a_blank_block_only_when_creating():
+    inline = ScheduleInline(Activity, admin.site)
+    assert inline.get_extra(_request()) == 1
+    assert inline.get_extra(_request(), obj=Activity()) == 0
 
 
 def test_occurrences_display_without_object(model_admin):

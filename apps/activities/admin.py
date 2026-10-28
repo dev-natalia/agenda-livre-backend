@@ -92,9 +92,12 @@ class AudienceListFilter(admin.SimpleListFilter):
 class ScheduleInline(StackedInline):
     model = Schedule
     form = ScheduleInlineForm
-    extra = 1
     verbose_name = "Programação"
     verbose_name_plural = "Programações"
+
+    def get_extra(self, request, obj=None, **kwargs):
+        """Bloco em branco só na criação; ao editar, use o botão de adicionar."""
+        return 1 if obj is None else 0
 
 
 @admin.register(Activity)
